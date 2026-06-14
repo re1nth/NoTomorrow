@@ -1,0 +1,16 @@
+{
+  "id": "proof-grade-broken-link",
+  "prompt": { "category": "proof", "name": "grade", "version": 1 },
+  "inputs": {
+    "task_title": "Deploy hello world",
+    "task_type": "jab",
+    "milestone_title": "Round 1: Hello world deploy",
+    "milestone_deliverable": { "kind": "url", "description": "Live URL on Vercel." },
+    "proof_kind": "url",
+    "proof_payload": { "kind": "url", "url": "https://invalid.example.invalid/" },
+    "user_rating": { "stamina": 820, "expertise": 790 }
+  },
+  "expect": {
+    "hasKeys": ["shipped", "gaps"]
+  }
+}

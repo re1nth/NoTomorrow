@@ -1,0 +1,16 @@
+node_modules/
+.pnpm-store/
+dist/
+.next/
+.turbo/
+.venv/
+__pycache__/
+*.pyc
+.env
+.env.local
+.env.*.local
+coverage/
+*.log
+.DS_Store
+*.tsbuildinfo
+uv.lock.bak

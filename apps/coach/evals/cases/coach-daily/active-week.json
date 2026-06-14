@@ -1,0 +1,24 @@
+{
+  "id": "coach-daily-active-week",
+  "prompt": { "category": "coach", "name": "daily-checkin", "version": 1 },
+  "inputs": {
+    "user_handle": "ippo",
+    "local_date": "2026-06-14",
+    "active_goals": [
+      { "title": "Ship a Pomodoro web app", "horizon": "1m", "currentMilestoneTitle": "Persist timers" }
+    ],
+    "rating_snapshot": { "stamina": 880, "expertise": 840, "delta7d": { "stamina": 30, "expertise": 25 } },
+    "recent_training_log": [
+      { "date": "2026-06-13", "mood": 4, "hoursTrained": 1.5, "blockers": "" },
+      { "date": "2026-06-12", "mood": 3, "hoursTrained": 0.5, "blockers": "Tired" }
+    ],
+    "last_submitted_proof": { "kind": "url", "url": "https://example.com/ship" },
+    "open_tasks": [
+      { "title": "Add localStorage persistence", "type": "hook", "estMinutes": 180 }
+    ]
+  },
+  "expect": {
+    "hasKeys": ["primaryTask", "coachLine"],
+    "notContains": ["Great question", "I'm here to help"]
+  }
+}

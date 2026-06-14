@@ -1,0 +1,48 @@
+/*
+ * Storybook-only stylesheet. Inlines a minimal subset of the theme tokens as
+ * utility classes so we can render components without a full Tailwind build
+ * pipeline in Storybook. Apps consume the proper Tailwind preset instead.
+ */
+
+:root {
+  --canvas: #f5f1e8;
+  --canvas-soft: #fbf8f1;
+  --canvas-deep: #ebe4d2;
+  --glove: #c0392b;
+  --glove-bright: #e74c3c;
+  --glove-deep: #8e2a1f;
+  --charcoal: #1f1b17;
+  --charcoal-soft: #3a332c;
+  --charcoal-ink: #0b0908;
+  --ko: #ffd60a;
+  --ko-bright: #ffe94d;
+  --ko-deep: #e6b800;
+  --rope: #a8421c;
+  --rope-light: #d17a4f;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--charcoal);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Bridge: shim the tokens the components reference. In real apps these come
+ * from the Tailwind preset. Storybook just needs them to look plausible. */
+.bg-canvas { background-color: var(--canvas); }
+.bg-canvas-soft { background-color: var(--canvas-soft); }
+.bg-canvas-deep { background-color: var(--canvas-deep); }
+.bg-glove { background-color: var(--glove); }
+.bg-glove-bright { background-color: var(--glove-bright); }
+.bg-glove-deep { background-color: var(--glove-deep); }
+.bg-charcoal { background-color: var(--charcoal); }
+.bg-charcoal-soft { background-color: var(--charcoal-soft); }
+.bg-charcoal-ink { background-color: var(--charcoal-ink); }
+.text-canvas-soft { color: var(--canvas-soft); }
+.text-charcoal { color: var(--charcoal); }
+.text-charcoal-soft { color: var(--charcoal-soft); }
+.text-glove { color: var(--glove); }
+.text-ko-deep { color: var(--ko-deep); }
+.border-ko { border-color: var(--ko); }
+.border-glove { border-color: var(--glove); }
+.border-rope { border-color: var(--rope); }

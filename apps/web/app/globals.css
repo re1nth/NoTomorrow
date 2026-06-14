@@ -1,0 +1,19 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background-color: theme('colors.canvas.DEFAULT');
+  color: theme('colors.charcoal.DEFAULT');
+  font-family: theme('fontFamily.sans');
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}

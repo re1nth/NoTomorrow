@@ -1,0 +1,29 @@
+{
+  "id": "roadmap-recalibrate-on-pace",
+  "prompt": { "category": "roadmap", "name": "recalibrate", "version": 1 },
+  "inputs": {
+    "user_handle": "ippo",
+    "goal_title": "Ship a Pomodoro web app",
+    "current_roadmap": { "milestones": [{ "order": 1, "title": "Hello world", "status": "cleared" }] },
+    "week_summary": {
+      "tasksCompleted": 5,
+      "tasksMissed": 0,
+      "milestonesCleared": 1,
+      "missedDeadlines": 0,
+      "ratingDelta": { "stamina": 12, "expertise": 8 },
+      "hoursTrained": 8,
+      "blockers": ""
+    },
+    "rating_snapshot": { "stamina": 832, "expertise": 798 },
+    "rating_history_4w": [
+      { "weekStart": "2026-05-24", "stamina": 800, "expertise": 770 },
+      { "weekStart": "2026-05-31", "stamina": 810, "expertise": 780 },
+      { "weekStart": "2026-06-07", "stamina": 820, "expertise": 790 },
+      { "weekStart": "2026-06-14", "stamina": 832, "expertise": 798 }
+    ],
+    "today_date": "2026-06-14"
+  },
+  "expect": {
+    "hasKeys": ["summary", "diff", "noOp"]
+  }
+}
