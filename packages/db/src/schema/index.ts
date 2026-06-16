@@ -19,3 +19,4 @@ export * from './rating-events';
 export * from './bundles';
 export * from './coach-messages';
 export * from './rivals';
+export * from './counters';

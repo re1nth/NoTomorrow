@@ -66,12 +66,19 @@ export function getWebAppDir(): string {
 }
 
 export function getMigrationsDir(): string {
-  // Packaged builds ship the migrations folder via extraResources so the
-  // .app keeps working even if the repo source ever drifts; dev falls back
-  // to the source folder.
+  // Prefer migrations checked into the repo so newly-generated SQL is
+  // applied without rebuilding the .app. The packaged extraResources copy
+  // is a portability fallback for when the repo can't be located.
+  try {
+    const repo = path.join(getRepoRoot(), 'packages', 'db-sqlite', 'migrations');
+    if (fs.existsSync(repo)) return repo;
+  } catch {
+    // Repo unresolved — fall through to packaged.
+  }
   if (process.resourcesPath) {
     const packaged = path.join(process.resourcesPath, 'db-sqlite-migrations');
     if (fs.existsSync(packaged)) return packaged;
   }
+  // Last resort — let the caller see the missing-folder warning.
   return path.join(getRepoRoot(), 'packages', 'db-sqlite', 'migrations');
 }

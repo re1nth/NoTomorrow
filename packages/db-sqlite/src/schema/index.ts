@@ -9,3 +9,4 @@ export * from './training-logs';
 export * from './rating-events';
 export * from './coach-messages';
 export * from './rivals';
+export * from './counters';

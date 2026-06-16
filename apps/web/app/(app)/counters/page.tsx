@@ -1,0 +1,368 @@
+'use client';
+
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { Button, Card } from '@/lib/ui';
+
+interface CounterRow {
+  id: string;
+  name: string;
+  count: number;
+  lastCheckIn: string | null;
+  createdAt: string;
+}
+
+/**
+ * Belt progression — every counter rises through these tiers. Each tier's
+ * `threshold` is the minimum count required to wear it; the bar fills
+ * within the current tier toward the next.
+ */
+const BELTS = [
+  { name: 'White', threshold: 0, hex: '#F5F1E6', ink: '#0B0908' },
+  { name: 'Yellow', threshold: 7, hex: '#F2A668', ink: '#0B0908' },
+  { name: 'Orange', threshold: 30, hex: '#E66B4A', ink: '#0B0908' },
+  { name: 'Green', threshold: 90, hex: '#5DAA5E', ink: '#0B0908' },
+  { name: 'Blue', threshold: 180, hex: '#5479C2', ink: '#EAE4D6' },
+  { name: 'Brown', threshold: 365, hex: '#7A4B2A', ink: '#EAE4D6' },
+  { name: 'Black', threshold: 720, hex: '#0B0908', ink: '#EAE4D6' },
+  { name: 'Black II', threshold: 1095, hex: '#2A1F3D', ink: '#EAE4D6' },
+  { name: 'Black III', threshold: 1825, hex: '#4B1E55', ink: '#EAE4D6' },
+  { name: 'Champion', threshold: 3650, hex: '#B73E63', ink: '#EAE4D6' },
+] as const;
+
+type Belt = (typeof BELTS)[number];
+
+function beltFor(count: number): { current: Belt; next: Belt | null; progress: number } {
+  let current: Belt = BELTS[0];
+  let next: Belt | null = BELTS[1] ?? null;
+  for (let i = 0; i < BELTS.length; i++) {
+    const tier = BELTS[i];
+    if (tier && count >= tier.threshold) {
+      current = tier;
+      next = BELTS[i + 1] ?? null;
+    }
+  }
+  const span = next ? next.threshold - current.threshold : 1;
+  const progress = next ? Math.min(1, (count - current.threshold) / span) : 1;
+  return { current, next, progress };
+}
+
+function todayLocal(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date());
+}
+
+export default function CountersPage() {
+  const [items, setItems] = useState<CounterRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState({ name: '', initialCount: 0 });
+  const [pulsing, setPulsing] = useState<string | null>(null);
+
+  useEffect(() => {
+    void refresh();
+  }, []);
+
+  async function refresh() {
+    setError(null);
+    try {
+      const res = await fetch('/api/counters', { cache: 'no-store' });
+      if (!res.ok) throw new Error(`Load failed: ${res.status}`);
+      const json = (await res.json()) as { counters: CounterRow[] };
+      setItems(json.counters);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function addCounter(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    const name = draft.name.trim();
+    if (!name) return;
+    const res = await fetch('/api/counters', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, initialCount: draft.initialCount }),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { error?: string } | null;
+      setError(body?.error ?? `Create failed: ${res.status}`);
+      return;
+    }
+    const row = (await res.json()) as CounterRow;
+    setItems((cs) => [...cs, row]);
+    setDraft({ name: '', initialCount: 0 });
+    setAdding(false);
+  }
+
+  async function checkIn(id: string) {
+    setError(null);
+    const res = await fetch(`/api/counters/${id}/checkin`, { method: 'POST' });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as
+        | { error?: string; counter?: CounterRow }
+        | null;
+      setError(body?.error ?? `Check-in failed: ${res.status}`);
+      if (body?.counter) {
+        setItems((cs) => cs.map((c) => (c.id === id ? body.counter! : c)));
+      }
+      return;
+    }
+    const row = (await res.json()) as CounterRow;
+    setItems((cs) => cs.map((c) => (c.id === id ? row : c)));
+    setPulsing(id);
+    setTimeout(() => setPulsing((p) => (p === id ? null : p)), 900);
+  }
+
+  async function remove(id: string) {
+    if (!confirm('Delete this counter? The streak is gone for good.')) return;
+    const res = await fetch(`/api/counters/${id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      setError(`Delete failed: ${res.status}`);
+      return;
+    }
+    setItems((cs) => cs.filter((c) => c.id !== id));
+  }
+
+  return (
+    <div className="max-w-5xl mx-auto">
+      <header className="flex items-baseline justify-between mb-6">
+        <div>
+          <h1 className="font-display text-4xl tracking-wider">Counters</h1>
+          <p className="text-sm text-charcoal-soft mt-1">
+            One thread, one punch a day. Don't break the chain.
+          </p>
+        </div>
+        <Button onClick={() => setAdding((v) => !v)} variant={adding ? 'ghost' : 'primary'}>
+          {adding ? 'Cancel' : '+ New thread'}
+        </Button>
+      </header>
+
+      <AnimatePresence initial={false}>
+        {adding ? (
+          <motion.div
+            key="add-form"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            className="overflow-hidden mb-6"
+          >
+            <Card tone="glove">
+              <form onSubmit={addCounter} className="grid grid-cols-[1fr_140px_auto] gap-3 items-end">
+                <label className="block text-sm">
+                  <span className="block mb-1 uppercase tracking-wider text-xs">Thread name</span>
+                  <input
+                    autoFocus
+                    required
+                    maxLength={80}
+                    value={draft.name}
+                    onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+                    placeholder="Gym, Badminton, Builder…"
+                    className="w-full rounded-glove border border-charcoal/20 bg-canvas-soft px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-glove"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="block mb-1 uppercase tracking-wider text-xs">Starting count</span>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100000}
+                    value={draft.initialCount}
+                    onChange={(e) =>
+                      setDraft((d) => ({ ...d, initialCount: Math.max(0, Number(e.target.value) || 0) }))
+                    }
+                    className="w-full rounded-glove border border-charcoal/20 bg-canvas-soft px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-glove"
+                  />
+                </label>
+                <Button type="submit" variant="primary" size="lg">
+                  Create
+                </Button>
+              </form>
+            </Card>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {error ? (
+        <motion.p
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-sm text-glove-deep mb-4"
+        >
+          {error}
+        </motion.p>
+      ) : null}
+
+      {loading ? (
+        <p className="text-sm text-charcoal-soft">Loading…</p>
+      ) : items.length === 0 ? (
+        <Card tone="default" className="text-center py-12">
+          <p className="font-display text-2xl mb-2">No threads yet.</p>
+          <p className="text-sm text-charcoal-soft">
+            Add one — gym, badminton, builder — and start your streak.
+          </p>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <AnimatePresence initial={false}>
+            {items.map((c) => (
+              <CounterCard
+                key={c.id}
+                counter={c}
+                pulsing={pulsing === c.id}
+                today={todayLocal()}
+                onCheckIn={() => checkIn(c.id)}
+                onDelete={() => remove(c.id)}
+              />
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CounterCard({
+  counter,
+  pulsing,
+  today,
+  onCheckIn,
+  onDelete,
+}: {
+  counter: CounterRow;
+  pulsing: boolean;
+  today: string;
+  onCheckIn: () => void;
+  onDelete: () => void;
+}) {
+  const { current, next, progress } = beltFor(counter.count);
+  const checkedToday = counter.lastCheckIn === today;
+  const pct = Math.round(progress * 100);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 14, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.18 } }}
+      whileHover={{ y: -2, scale: 1.005 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+      className="relative"
+    >
+      <Card tone="default" className="relative overflow-hidden">
+        {/* Belt-color halo behind the number — pulses on check-in. */}
+        <motion.div
+          aria-hidden
+          className="absolute -top-12 -right-12 w-56 h-56 rounded-full blur-3xl opacity-30 pointer-events-none"
+          style={{ backgroundColor: current.hex }}
+          animate={pulsing ? { opacity: [0.3, 0.85, 0.3], scale: [1, 1.25, 1] } : { opacity: 0.3 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+        />
+
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="font-display text-2xl tracking-wider">{counter.name}</div>
+            <BeltBadge belt={current} />
+          </div>
+          <button
+            type="button"
+            onClick={onDelete}
+            className="text-xs text-charcoal-soft hover:text-glove-deep transition-colors"
+            aria-label="Delete counter"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="flex items-end justify-between mt-4">
+          <div className="leading-none">
+            <span className="uppercase tracking-wider text-xs text-charcoal-soft block mb-1">
+              Days
+            </span>
+            <AnimatePresence mode="popLayout">
+              <motion.div
+                key={counter.count}
+                initial={{ y: 14, opacity: 0, scale: 0.9 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: -14, opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 460, damping: 24 }}
+                className="font-display text-6xl tabular-nums"
+              >
+                {counter.count}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+          <div className="text-right text-xs text-charcoal-soft pb-2">
+            {next ? (
+              <>
+                <div>
+                  Next belt:{' '}
+                  <span className="font-display tracking-wider text-charcoal">{next.name}</span>
+                </div>
+                <div>at {next.threshold} days</div>
+              </>
+            ) : (
+              <div className="font-display tracking-wider">Top tier reached.</div>
+            )}
+          </div>
+        </div>
+
+        {/* Progress bar. Belt color fills, with a thin track underneath. */}
+        <div className="mt-3 h-2.5 rounded-full bg-charcoal/10 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            style={{ backgroundColor: current.hex }}
+            initial={false}
+            animate={{ width: `${pct}%` }}
+            transition={{ type: 'spring', stiffness: 180, damping: 28 }}
+          />
+        </div>
+        <div className="flex justify-between text-[10px] uppercase tracking-wider text-charcoal-soft mt-1">
+          <span>
+            {current.name} · {current.threshold}
+          </span>
+          <span>{next ? `${next.threshold - counter.count} to go` : '∞'}</span>
+        </div>
+
+        <div className="mt-5 flex items-center justify-between">
+          <div className="text-xs text-charcoal-soft">
+            {counter.lastCheckIn ? (
+              <>Last: <span className="text-charcoal">{counter.lastCheckIn}</span></>
+            ) : (
+              <>No check-in yet.</>
+            )}
+          </div>
+          <motion.div whileTap={{ scale: 0.92 }} whileHover={{ scale: 1.04 }}>
+            <Button
+              onClick={onCheckIn}
+              variant={checkedToday ? 'ghost' : 'primary'}
+              size="lg"
+              disabled={checkedToday}
+            >
+              {checkedToday ? '✓ Done today' : '+1 today'}
+            </Button>
+          </motion.div>
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
+function BeltBadge({ belt }: { belt: { name: string; hex: string; ink: string } }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 mt-1 px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider font-display"
+      style={{ backgroundColor: belt.hex, color: belt.ink }}
+    >
+      <span aria-hidden>●</span> {belt.name} belt
+    </span>
+  );
+}
