@@ -87,6 +87,7 @@ export const authOptions: AuthOptions = {
   providers,
   session: { strategy: 'jwt' },
   secret: env.NEXTAUTH_SECRET,
+  debug: process.env.NOTOMORROW_RUNTIME === 'desktop',
   pages: {
     signIn: '/sign-in',
   },
@@ -113,8 +114,16 @@ export const authOptions: AuthOptions = {
 /**
  * Look up the current user's id from the session. Returns null if
  * unauthenticated — route handlers should respond 401 in that case.
+ *
+ * Desktop runtime short-circuits to the single local user (created at boot
+ * by `apps/desktop/src/main`). This skips NextAuth entirely — there is no
+ * sign-in screen in the packaged app.
  */
 export async function getUserId(): Promise<string | null> {
+  if (process.env.NOTOMORROW_RUNTIME === 'desktop') {
+    const row = await db.query.users.findFirst();
+    return row?.id ?? null;
+  }
   const session = await getServerSession(authOptions);
   const id = (session?.user as { id?: string } | undefined)?.id;
   return id ?? null;

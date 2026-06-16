@@ -1,53 +1,31 @@
-'use client';
-
-import { signIn } from 'next-auth/react';
-import { useState } from 'react';
-import { Button, Card } from '@/lib/ui';
+import { redirect } from 'next/navigation';
+import { SignInForm } from './SignInForm';
 
 /**
- * Sign-in surface. Renders whatever providers are wired up server-side.
+ * Sign-in route.
  *
- * For MVP we always show the dev/credentials path so the golden flow works
- * locally without an SMTP server or OAuth keys.
+ * In desktop runtime there is no sign-in — the Electron main process boots
+ * the app with a single auto-created local user (see `apps/desktop/src/main/
+ * bootstrap.ts`). Redirecting here keeps users from landing on a dead-end
+ * form whose authorize() handler would just no-op against the same local
+ * user that's already implicitly signed in.
+ *
+ * Web mode keeps the email form unchanged.
+ *
+ * `dynamic = 'force-dynamic'` is required because the runtime check below
+ * happens at request time, not build time. Without this, Next would
+ * statically pre-render the page using the build-time env (no
+ * NOTOMORROW_RUNTIME set) and bake in the web-only branch forever.
  */
+export const dynamic = 'force-dynamic';
+
 export default function SignInPage() {
-  const [email, setEmail] = useState('demo@notomorrow.dev');
-  const [pending, setPending] = useState(false);
-
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setPending(true);
-    await signIn('dev', { email, callbackUrl: '/onboarding' });
+  if (process.env.NOTOMORROW_RUNTIME === 'desktop') {
+    redirect('/gym');
   }
-
   return (
-    <main className="min-h-screen flex items-center justify-center px-6 py-16">
-      <Card className="w-full max-w-md" tone="glove">
-        <h1 className="font-display text-3xl mb-1">Step into the ring</h1>
-        <p className="text-sm text-charcoal-soft mb-6">
-          Sign in with email. We&apos;ll create your account on first visit.
-        </p>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <label className="block text-sm font-medium">
-            <span className="block mb-1 uppercase tracking-wider text-xs">
-              Email
-            </span>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-glove border border-charcoal/20 bg-canvas-soft px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-glove"
-            />
-          </label>
-          <Button type="submit" variant="primary" size="lg" block disabled={pending}>
-            {pending ? 'Lacing up…' : 'Sign in'}
-          </Button>
-        </form>
-        <p className="mt-4 text-xs text-charcoal-soft">
-          Google sign-in available when configured server-side.
-        </p>
-      </Card>
+    <main className="sunset-hero min-h-screen flex items-center justify-center px-6 py-16">
+      <SignInForm />
     </main>
   );
 }

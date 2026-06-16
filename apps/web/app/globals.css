@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 html,
@@ -16,4 +16,30 @@ body {
 
 body {
   margin: 0;
+  /* Tiny ambient warmth so the dark base doesn't read as pure void. */
+  background-image: radial-gradient(
+    1200px 600px at 70% -10%,
+    rgba(183, 62, 99, 0.06),
+    transparent 70%
+  );
+}
+
+/* Sunset hero — drop on a section to get the full dusk treatment. */
+.sunset-hero {
+  background-image: theme('backgroundImage.sunset-dusk'),
+    theme('backgroundImage.film-grain');
+  background-blend-mode: normal, overlay;
+  background-size: cover, 220px 220px;
+  color: theme('colors.charcoal.DEFAULT');
+}
+
+/* Same as above with a sun disc — meant for the public landing where the
+ * silhouette/text sits in the lower third. */
+.sunset-hero-with-sun {
+  background-image: theme('backgroundImage.sunset-sun'),
+    theme('backgroundImage.sunset-dusk'),
+    theme('backgroundImage.film-grain');
+  background-blend-mode: screen, normal, overlay;
+  background-size: cover, cover, 220px 220px;
+  color: theme('colors.charcoal.DEFAULT');
 }

@@ -48,36 +48,66 @@ export type MotionEasing = keyof typeof motionTokens.easings;
 
 /**
  * Theme palette tokens — exported for non-Tailwind consumers (e.g. inline SVG).
+ *
+ * Dark-first. `canvas` is the main surface family (deep → elevated) and
+ * `charcoal` is the text family (bright → muted). Component code stays in
+ * the same vocabulary; the values flipped to a calm low-glare dark theme.
+ *
+ * `sunset` is a separate accent palette used by the landing / sign-in /
+ * celebration surfaces via the `bg-sunset*` gradient utilities below — meant
+ * to evoke the dusk training scenes from the source material rather than be
+ * an ambient backdrop.
  */
 export const palette = {
-  /** Ring canvas — slightly warm off-white, like aged tatami */
+  /** Surface family — was "ring canvas" off-white, now deep matte black */
   canvas: {
-    DEFAULT: '#F5F1E8',
-    soft: '#FBF8F1',
-    deep: '#EBE4D2',
+    /** main page background */
+    DEFAULT: '#0F0E12',
+    /** cards, headers, slightly elevated */
+    soft: '#16151B',
+    /** dialogs, popovers, second elevation */
+    deep: '#1F1D27',
   },
-  /** Glove red — boxing-glove leather */
+  /** Glove red — boxing-glove leather. Toned a touch on dark for less glare. */
   glove: {
     DEFAULT: '#C0392B',
     bright: '#E74C3C',
     deep: '#8E2A1F',
   },
-  /** Charcoal — ring rope shadow, ink lines */
+  /** Text family — was "charcoal" inks, now warm off-whites */
   charcoal: {
-    DEFAULT: '#1F1B17',
-    soft: '#3A332C',
+    /** primary text */
+    DEFAULT: '#EAE4D6',
+    /** secondary / muted */
+    soft: '#9A9485',
+    /** legacy alias for the deepest ink — kept so SVGs that needed near-black still get it */
     ink: '#0B0908',
   },
-  /** KO yellow — neon celebration accent */
+  /** KO yellow — celebration accent. Slightly muted for dark mode. */
   ko: {
-    DEFAULT: '#FFD60A',
-    bright: '#FFE94D',
-    deep: '#E6B800',
+    DEFAULT: '#F6CB3C',
+    bright: '#FFE066',
+    deep: '#C8A025',
   },
   /** Ring rope — secondary accent */
   rope: {
     DEFAULT: '#A8421C',
     light: '#D17A4F',
+  },
+  /** Sunset — used by landing / sign-in. Evokes the dusk rooftop scenes. */
+  sunset: {
+    /** Highest sky — deep indigo before the colour starts */
+    night: '#1A1238',
+    /** Upper sunset, plum into violet */
+    plum: '#4B1E55',
+    /** The hot band, magenta into coral */
+    magenta: '#B73E63',
+    /** The glow line on the horizon */
+    coral: '#E66B4A',
+    /** Late peach, fading into rooftop highlight */
+    peach: '#F2A668',
+    /** The sun itself */
+    amber: '#F7C566',
   },
 } as const;
 
@@ -92,6 +122,35 @@ const preset = {
         charcoal: palette.charcoal,
         ko: palette.ko,
         rope: palette.rope,
+        sunset: palette.sunset,
+      },
+      backgroundImage: {
+        // Full-bleed dusk: indigo top → plum → magenta band → coral horizon →
+        // peach glow at the bottom. Use on hero sections that should *feel*
+        // like a rooftop sundown — landing, sign-in, KO celebration.
+        'sunset-dusk': `linear-gradient(180deg,
+          ${palette.sunset.night} 0%,
+          ${palette.sunset.plum} 32%,
+          ${palette.sunset.magenta} 58%,
+          ${palette.sunset.coral} 78%,
+          ${palette.sunset.peach} 100%)`,
+        // Horizontal variant — the sun on the right, deepening into night
+        // on the left. For side-panel hero treatments.
+        'sunset-horizon': `linear-gradient(90deg,
+          ${palette.sunset.night} 0%,
+          ${palette.sunset.plum} 35%,
+          ${palette.sunset.magenta} 65%,
+          ${palette.sunset.amber} 100%)`,
+        // Radial sun — drop on top of -dusk to suggest a sun disc behind
+        // a silhouette. Combine via bg-[image:var(...)] later if desired.
+        'sunset-sun': `radial-gradient(circle at 50% 78%,
+          ${palette.sunset.amber} 0%,
+          ${palette.sunset.coral} 14%,
+          transparent 35%)`,
+        // Subtle film-grain noise overlay (svg data uri). Layer on top of
+        // gradients to break up banding and add that anime-cel grit.
+        'film-grain':
+          "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
       },
       fontFamily: {
         // Display: punchy, condensed — used for KO, round headers

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",
+    "build:desktop": "pnpm --filter web build && pnpm --filter desktop dist",
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",

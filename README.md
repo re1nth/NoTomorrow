@@ -56,3 +56,60 @@ Per-directory `PLAN.md` files describe scope, deps, and acceptance criteria.
 [`arch/TRACKER.md`](./arch/TRACKER.md) is the live status board with interface
 contracts and the breaking-change protocol. Read it before starting work in any
 sub-directory.
+
+## Mac desktop app
+
+`apps/desktop` is an Electron launcher that opens NoTomorrow as a native macOS
+window — no `docker compose up`, no `pnpm dev`, no terminal. It runs against
+the local source tree (so this machine, not portable to another), uses SQLite
+instead of Postgres, and stores its data in
+`~/Library/Application Support/NoTomorrow/`.
+
+### Build the `.dmg`
+
+```bash
+# one-time: produce the .icns from the source PNG (needs python3 + Pillow)
+pnpm --filter desktop run icon
+
+# build the production web bundle + the .dmg
+pnpm build:desktop
+```
+
+Output: `apps/desktop/dist-electron/NoTomorrow-0.1.0-arm64.dmg`
+(about ~150 MB, Apple Silicon).
+
+### Install
+
+1. Double-click the `.dmg`. A window opens showing the NoTomorrow icon and
+   an `Applications` shortcut.
+2. Drag `NoTomorrow.app` onto `Applications`.
+3. Eject the disk image.
+4. **First launch (unsigned build):** macOS Gatekeeper will refuse the .app
+   because it isn't notarized. One-time fix:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/NoTomorrow.app
+   ```
+   Then double-click `NoTomorrow` in Launchpad. From here on it's one click.
+
+### Uninstall
+
+```bash
+# remove the application
+rm -rf /Applications/NoTomorrow.app
+
+# remove user data (SQLite db + Electron caches) — destroys your goals & log
+rm -rf ~/Library/Application\ Support/NoTomorrow
+
+# old dev-run cache, if you ever ran `pnpm --filter desktop dev`
+rm -rf ~/Library/Application\ Support/desktop
+```
+
+### Repo dependency
+
+The packaged .app launches the Next.js app from this repo's source. If you
+move the repo, rebuild the .dmg or set `NOTOMORROW_REPO_DIR` to override the
+baked-in path:
+
+```bash
+NOTOMORROW_REPO_DIR=/new/path/to/NoTomorrow open -a NoTomorrow
+```

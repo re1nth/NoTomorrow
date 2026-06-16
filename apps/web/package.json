@@ -13,7 +13,9 @@
   },
   "dependencies": {
     "@notomorrow/db": "workspace:*",
+    "@notomorrow/db-sqlite": "workspace:*",
     "@notomorrow/domain": "workspace:*",
+    "better-sqlite3": "^11.5.0",
     "@notomorrow/inngest": "workspace:*",
     "@notomorrow/ui": "workspace:*",
     "drizzle-orm": "^0.36.4",

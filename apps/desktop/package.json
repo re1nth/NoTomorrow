@@ -1,0 +1,29 @@
+{
+  "name": "desktop",
+  "productName": "NoTomorrow",
+  "version": "0.1.0",
+  "private": true,
+  "description": "NoTomorrow — a Hajime no Ippo-themed builder's gym, packaged for macOS.",
+  "author": "NoTomorrow",
+  "main": "dist/main/main.js",
+  "scripts": {
+    "prebuild": "node build/prebuild.mjs",
+    "build": "npm run prebuild && tsc -p tsconfig.json",
+    "electron-rebuild": "electron-rebuild -f -w better-sqlite3",
+    "dev": "npm run build && NOTOMORROW_RUNTIME=desktop electron .",
+    "icon": "python3 build/make-icon.py && iconutil --convert icns build/icon.iconset --output build/icon.icns",
+    "dist": "npm run build && npm run electron-rebuild && electron-builder --mac",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "drizzle-orm": "^0.36.4"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.0",
+    "@types/node": "^20.16.0",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.2"
+  }
+}

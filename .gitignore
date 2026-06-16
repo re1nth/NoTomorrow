@@ -1,8 +1,15 @@
 node_modules/
 .pnpm-store/
 dist/
+dist-electron/
 .next/
 .turbo/
+
+# Desktop build artifacts — regenerated from build/make-icon.py and build/prebuild.mjs
+apps/desktop/build/icon-1024.png
+apps/desktop/build/icon.iconset/
+apps/desktop/build/repo-config.json
+
 .venv/
 __pycache__/
 *.pyc

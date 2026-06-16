@@ -1,0 +1,77 @@
+# electron-builder config for NoTomorrow desktop.
+#
+# Distribution model: this is a *single-user launcher* for the local
+# NoTomorrow source tree. The .app bundles only the Electron main process
+# and the native dependencies (better-sqlite3, drizzle); the Next.js app is
+# loaded in-process from the user's local repo at runtime (path resolved by
+# `apps/desktop/src/main/paths.ts`, with the repo path baked in at build
+# time via NOTOMORROW_REPO_DIR).
+#
+# This keeps the .dmg under ~150 MB instead of ~500 MB and avoids the
+# pnpm-workspace symlink dereferencing problem inside electron-builder. The
+# tradeoff is the .app is not portable to another machine — which is fine
+# because this is a personal install, not a shared distribution.
+#
+# Unsigned. Users open with:
+#   xattr -dr com.apple.quarantine /Applications/NoTomorrow.app
+# on first launch. Signing/notarization is deferred to a v2 packaging pass.
+
+appId: com.notomorrow.app
+productName: NoTomorrow
+copyright: NoTomorrow
+asar: true
+
+directories:
+  output: dist-electron
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+
+# Native modules must be unpacked from asar so dlopen can find their .node
+# binaries on disk.
+asarUnpack:
+  - "**/better-sqlite3/**"
+  - "**/bindings/**"
+
+# Ship the SQLite migrations next to the binary so the launcher's runtime
+# resolves them via `process.resourcesPath/db-sqlite-migrations` instead of
+# walking the repo. Everything else (web app source, packages, prompts) is
+# read from the repo path resolved at runtime.
+extraResources:
+  - from: ../../packages/db-sqlite/migrations
+    to: db-sqlite-migrations
+  # Repo path baked at build time. paths.ts uses this to locate apps/web.
+  - from: build/repo-config.json
+    to: repo-config.json
+
+mac:
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  category: public.app-category.productivity
+  icon: build/icon.icns
+  identity: null              # unsigned
+  hardenedRuntime: false
+  gatekeeperAssess: false
+  type: distribution
+
+dmg:
+  title: NoTomorrow
+  icon: build/icon.icns
+  iconSize: 96
+  window:
+    width: 540
+    height: 380
+  contents:
+    - x: 140
+      y: 200
+      type: file
+    - x: 400
+      y: 200
+      type: link
+      path: /Applications
+
+publish: null
