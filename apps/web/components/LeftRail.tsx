@@ -4,6 +4,7 @@ const links = [
   { href: '/gym', label: 'Gym' },
   { href: '/goals', label: 'Goals' },
   { href: '/rating', label: 'Rating' },
+  { href: '/settings', label: 'Settings' },
 ] as const;
 
 /**
