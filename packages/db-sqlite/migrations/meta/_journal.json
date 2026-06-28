@@ -15,6 +15,13 @@
       "when": 1781630597542,
       "tag": "0001_soft_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782665894431,
+      "tag": "0002_faithful_tyrannus",
+      "breakpoints": true
     }
   ]
 }

@@ -20,3 +20,4 @@ export * from './bundles';
 export * from './coach-messages';
 export * from './rivals';
 export * from './counters';
+export * from './counter-check-ins';

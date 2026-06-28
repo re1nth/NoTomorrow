@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card } from '@/lib/ui';
 
 interface CounterRow {
@@ -102,7 +102,7 @@ export default function CountersPage() {
     setAdding(false);
   }
 
-  async function checkIn(id: string) {
+  async function checkIn(id: string): Promise<boolean> {
     setError(null);
     const res = await fetch(`/api/counters/${id}/checkin`, { method: 'POST' });
     if (!res.ok) {
@@ -113,12 +113,13 @@ export default function CountersPage() {
       if (body?.counter) {
         setItems((cs) => cs.map((c) => (c.id === id ? body.counter! : c)));
       }
-      return;
+      return false;
     }
     const row = (await res.json()) as CounterRow;
     setItems((cs) => cs.map((c) => (c.id === id ? row : c)));
     setPulsing(id);
     setTimeout(() => setPulsing((p) => (p === id ? null : p)), 900);
+    return true;
   }
 
   async function remove(id: string) {
@@ -240,12 +241,40 @@ function CounterCard({
   counter: CounterRow;
   pulsing: boolean;
   today: string;
-  onCheckIn: () => void;
+  onCheckIn: () => Promise<boolean>;
   onDelete: () => void;
 }) {
   const { current, next, progress } = beltFor(counter.count);
   const checkedToday = counter.lastCheckIn === today;
   const pct = Math.round(progress * 100);
+
+  const [history, setHistory] = useState<Set<string>>(() => new Set());
+  const refreshHistory = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/counters/${counter.id}/history`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) return;
+      const json = (await res.json()) as { days: string[] };
+      setHistory(new Set(json.days));
+    } catch {
+      // Heatmap is non-critical; swallow and keep the card usable.
+    }
+  }, [counter.id]);
+  useEffect(() => {
+    void refreshHistory();
+  }, [refreshHistory]);
+
+  async function handleCheckIn() {
+    const ok = await onCheckIn();
+    if (ok) {
+      setHistory((prev) => {
+        const next = new Set(prev);
+        next.add(today);
+        return next;
+      });
+    }
+  }
 
   return (
     <motion.div
@@ -342,7 +371,7 @@ function CounterCard({
           </div>
           <motion.div whileTap={{ scale: 0.92 }} whileHover={{ scale: 1.04 }}>
             <Button
-              onClick={onCheckIn}
+              onClick={handleCheckIn}
               variant={checkedToday ? 'ghost' : 'primary'}
               size="lg"
               disabled={checkedToday}
@@ -351,8 +380,135 @@ function CounterCard({
             </Button>
           </motion.div>
         </div>
+
+        <Heatmap days={history} today={today} fillHex={current.hex} />
       </Card>
     </motion.div>
+  );
+}
+
+/**
+ * GitHub-style contribution grid — 53 weeks × 7 days, ending on this week.
+ * Filled cells use the counter's current belt color so each thread "looks
+ * like" its tier at a glance. Cells overflow-scroll on narrow cards.
+ */
+function Heatmap({
+  days,
+  today,
+  fillHex,
+}: {
+  days: Set<string>;
+  today: string;
+  fillHex: string;
+}) {
+  const WEEKS = 53;
+  const { columns, monthLabels } = useMemo(() => {
+    // Anchor on today, parsed as local date (avoid TZ drift from `new Date(today)`).
+    const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+    const anchor = new Date(y, m - 1, d);
+    // Walk back to the most recent Sunday so the rightmost column is "this week".
+    const todayDow = anchor.getDay(); // 0..6, Sun..Sat
+    const lastSunday = new Date(anchor);
+    lastSunday.setDate(anchor.getDate() - todayDow);
+    // Start of the grid = lastSunday minus (WEEKS - 1) weeks.
+    const start = new Date(lastSunday);
+    start.setDate(lastSunday.getDate() - (WEEKS - 1) * 7);
+
+    const cols: { day: string; inFuture: boolean }[][] = [];
+    const labels: { col: number; label: string }[] = [];
+    let lastMonth = -1;
+    for (let w = 0; w < WEEKS; w++) {
+      const col: { day: string; inFuture: boolean }[] = [];
+      for (let r = 0; r < 7; r++) {
+        const cell = new Date(start);
+        cell.setDate(start.getDate() + w * 7 + r);
+        const iso = `${cell.getFullYear()}-${String(cell.getMonth() + 1).padStart(2, '0')}-${String(
+          cell.getDate(),
+        ).padStart(2, '0')}`;
+        const inFuture = cell.getTime() > anchor.getTime();
+        col.push({ day: iso, inFuture });
+        if (r === 0 && cell.getMonth() !== lastMonth) {
+          labels.push({
+            col: w,
+            label: cell.toLocaleString('en-US', { month: 'short' }),
+          });
+          lastMonth = cell.getMonth();
+        }
+      }
+      cols.push(col);
+    }
+    return { columns: cols, monthLabels: labels };
+  }, [today]);
+
+  const CELL = 11;
+  const GAP = 3;
+
+  return (
+    <div className="mt-5 border-t border-charcoal/10 pt-4">
+      <div className="flex items-baseline justify-between mb-2">
+        <span className="uppercase tracking-wider text-[10px] text-charcoal-soft">
+          Last year
+        </span>
+        <span className="text-[10px] text-charcoal-soft">
+          {days.size} {days.size === 1 ? 'day' : 'days'}
+        </span>
+      </div>
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div className="inline-block">
+          {/* Month labels — positioned along the top row of cells. */}
+          <div
+            className="relative text-[9px] uppercase tracking-wider text-charcoal-soft"
+            style={{ height: 12, width: WEEKS * (CELL + GAP) }}
+          >
+            {monthLabels.map((m) => (
+              <span
+                key={`${m.col}-${m.label}`}
+                className="absolute"
+                style={{ left: m.col * (CELL + GAP) }}
+              >
+                {m.label}
+              </span>
+            ))}
+          </div>
+          <div
+            className="grid"
+            style={{
+              gridTemplateColumns: `repeat(${WEEKS}, ${CELL}px)`,
+              columnGap: GAP,
+              rowGap: GAP,
+              gridAutoFlow: 'column',
+              gridTemplateRows: `repeat(7, ${CELL}px)`,
+            }}
+          >
+            {columns.flatMap((col) =>
+              col.map((cell) => {
+                const filled = days.has(cell.day);
+                const isToday = cell.day === today;
+                return (
+                  <div
+                    key={cell.day}
+                    title={`${cell.day}${filled ? ' — checked in' : ''}`}
+                    className="rounded-[2px]"
+                    style={{
+                      width: CELL,
+                      height: CELL,
+                      backgroundColor: cell.inFuture
+                        ? 'transparent'
+                        : filled
+                          ? fillHex
+                          : 'rgba(11, 9, 8, 0.08)',
+                      outline: isToday ? '1px solid rgba(11, 9, 8, 0.45)' : 'none',
+                      outlineOffset: isToday ? 1 : 0,
+                      opacity: cell.inFuture ? 0 : 1,
+                    }}
+                  />
+                );
+              }),
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 

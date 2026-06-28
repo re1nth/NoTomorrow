@@ -15,6 +15,13 @@
       "when": 1781423054171,
       "tag": "0001_bundles_hnsw_index",
       "breakpoints": false
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1782665894431,
+      "tag": "0002_counter_check_ins",
+      "breakpoints": false
     }
   ]
 }

@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
-import { counters } from '@notomorrow/db';
+import { counterCheckIns, counters } from '@notomorrow/db';
 import { db } from '@/lib/db';
 import { requireUserOrTest, UnauthorizedError } from '@/lib/auth';
 
@@ -58,5 +58,12 @@ export async function POST(
   if (!updated) {
     return NextResponse.json({ error: 'update failed' }, { status: 500 });
   }
+  // Append to the history log so the heatmap can render. The unique
+  // (counter_id, day) index makes this idempotent if a retry slips past
+  // the lastCheckIn guard above.
+  await db
+    .insert(counterCheckIns)
+    .values({ counterId: id, userId: user.id, day: today })
+    .onConflictDoNothing();
   return NextResponse.json(updated);
 }
