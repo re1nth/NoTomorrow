@@ -212,7 +212,7 @@ export default function CountersPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 gap-5">
           <AnimatePresence initial={false}>
             {items.map((c) => (
               <CounterCard
@@ -496,8 +496,8 @@ function Heatmap({
                         ? 'transparent'
                         : filled
                           ? fillHex
-                          : 'rgba(11, 9, 8, 0.08)',
-                      outline: isToday ? '1px solid rgba(11, 9, 8, 0.45)' : 'none',
+                          : 'rgba(234, 228, 214, 0.10)',
+                      outline: isToday ? '1px solid rgba(234, 228, 214, 0.55)' : 'none',
                       outlineOffset: isToday ? 1 : 0,
                       opacity: cell.inFuture ? 0 : 1,
                     }}

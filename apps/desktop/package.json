@@ -1,7 +1,7 @@
 {
   "name": "desktop",
   "productName": "NoTomorrow",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "NoTomorrow — a Hajime no Ippo-themed builder's gym, packaged for macOS.",
   "author": "NoTomorrow",
