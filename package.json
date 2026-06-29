@@ -12,10 +12,7 @@
     "test": "turbo run test",
     "db:migrate": "pnpm --filter @notomorrow/db migrate",
     "db:reset": "tsx scripts/db-reset.ts",
-    "db:seed": "tsx scripts/seed.ts",
-    "evals": "tsx scripts/evals/runner.ts",
-    "check:env": "tsx scripts/check-env.ts",
-    "gen:pydantic": "tsx scripts/gen-pydantic.ts"
+    "check:env": "tsx scripts/check-env.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

@@ -1,9 +1,7 @@
 import type { SVGProps } from 'react';
-import type { PunchType } from '@notomorrow/domain';
 import { cn } from '../utils/cn.js';
 
-// Re-export so consumers importing PunchIcon don't need a second import path.
-export type { PunchType };
+export type PunchType = 'jab' | 'hook' | 'uppercut' | 'dempsey_roll';
 
 export interface PunchIconProps extends Omit<SVGProps<SVGSVGElement>, 'type'> {
   type: PunchType;

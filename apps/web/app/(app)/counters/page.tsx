@@ -212,7 +212,7 @@ export default function CountersPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-5">
+        <div className="grid grid-cols-1 gap-5 max-w-[896px] mx-auto">
           <AnimatePresence initial={false}>
             {items.map((c) => (
               <CounterCard
@@ -416,7 +416,7 @@ function Heatmap({
 
     const cols: { day: string; inFuture: boolean }[][] = [];
     const labels: { col: number; label: string }[] = [];
-    let lastMonth = -1;
+    let labeledMonth = -1;
     for (let w = 0; w < WEEKS; w++) {
       const col: { day: string; inFuture: boolean }[] = [];
       for (let r = 0; r < 7; r++) {
@@ -427,12 +427,20 @@ function Heatmap({
         ).padStart(2, '0')}`;
         const inFuture = cell.getTime() > anchor.getTime();
         col.push({ day: iso, inFuture });
-        if (r === 0 && cell.getMonth() !== lastMonth) {
+        // Label a month only at its first full Sunday (date 1..7). This skips
+        // partial months at the grid edges so we never get two labels in
+        // adjacent columns (the cause of "Jun"/"Jul" overlap when the grid
+        // starts on the last Sunday of a month).
+        if (
+          r === 0 &&
+          cell.getDate() <= 7 &&
+          cell.getMonth() !== labeledMonth
+        ) {
           labels.push({
             col: w,
             label: cell.toLocaleString('en-US', { month: 'short' }),
           });
-          lastMonth = cell.getMonth();
+          labeledMonth = cell.getMonth();
         }
       }
       cols.push(col);
@@ -440,7 +448,7 @@ function Heatmap({
     return { columns: cols, monthLabels: labels };
   }, [today]);
 
-  const CELL = 11;
+  const CELL = 13;
   const GAP = 3;
 
   return (
@@ -453,7 +461,7 @@ function Heatmap({
           {days.size} {days.size === 1 ? 'day' : 'days'}
         </span>
       </div>
-      <div className="overflow-x-auto -mx-1 px-1">
+      <div>
         <div className="inline-block">
           {/* Month labels — positioned along the top row of cells. */}
           <div

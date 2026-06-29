@@ -2,8 +2,7 @@ import Link from 'next/link';
 import { Button, Card } from '@/lib/ui';
 
 /**
- * Public landing page. Single CTA into sign-in. Wears the full sunset
- * treatment so the first impression is the rooftop-at-dusk mood.
+ * Public landing page. Single CTA into the Counters app.
  */
 export default function HomePage() {
   return (
@@ -14,8 +13,7 @@ export default function HomePage() {
           No Tomorrow
         </h1>
         <p className="text-lg text-charcoal/85">
-          The internet&apos;s coach for people who want to ship. Set a goal, take
-          the diagnostic, get a roadmap, and start punching.
+          One thread, one punch a day. Don&apos;t break the chain.
         </p>
         <Card
           tone="glove"
@@ -25,13 +23,13 @@ export default function HomePage() {
             Round 1
           </p>
           <h2 className="text-2xl font-display mt-1 mb-3 text-charcoal">
-            Sign in and meet the coach.
+            Track every streak that matters.
           </h2>
           <p className="text-charcoal-soft mb-4">
-            One starting domain (web-frontend), one goal, one daily punch. We
-            grade your work and your rating moves.
+            Gym, badminton, builder — name a thread, hit +1 a day, watch the
+            heatmap fill.
           </p>
-          <Link href="/gym">
+          <Link href="/counters">
             <Button variant="primary" size="lg">
               Step into the ring
             </Button>

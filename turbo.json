@@ -19,9 +19,6 @@
     },
     "migrate": {
       "cache": false
-    },
-    "seed": {
-      "cache": false
     }
   }
 }

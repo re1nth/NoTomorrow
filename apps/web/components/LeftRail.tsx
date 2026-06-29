@@ -1,12 +1,6 @@
 import Link from 'next/link';
 
-const links = [
-  { href: '/gym', label: 'Gym' },
-  { href: '/goals', label: 'Goals' },
-  { href: '/counters', label: 'Counters' },
-  { href: '/rating', label: 'Rating' },
-  { href: '/settings', label: 'Settings' },
-] as const;
+const links = [{ href: '/counters', label: 'Counters' }] as const;
 
 /**
  * Persistent left navigation for the authenticated app shell.

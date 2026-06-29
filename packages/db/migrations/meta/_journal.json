@@ -22,6 +22,13 @@
       "when": 1782665894431,
       "tag": "0002_counter_check_ins",
       "breakpoints": false
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782752294000,
+      "tag": "0003_drop_goals_tree",
+      "breakpoints": false
     }
   ]
 }

@@ -14,47 +14,23 @@ import { vi, beforeEach } from 'vitest';
 (process.env as Record<string, string>).VITEST = 'true';
 process.env.NEXTAUTH_SECRET = 'test-secret';
 process.env.DATABASE_URL = 'postgres://test:test@localhost:5432/test';
-process.env.COACH_SERVICE_URL = 'http://localhost:8001';
-process.env.COACH_SERVICE_TOKEN = 'test';
 
-// In-memory DB fake. Each test resets the per-table arrays via beforeEach.
 export interface DbState {
   users: Array<Record<string, unknown>>;
-  goals: Array<Record<string, unknown>>;
-  roadmaps: Array<Record<string, unknown>>;
-  milestones: Array<Record<string, unknown>>;
-  tasks: Array<Record<string, unknown>>;
-  proofs: Array<Record<string, unknown>>;
-  trainingLogs: Array<Record<string, unknown>>;
-  coachMessages: Array<Record<string, unknown>>;
-  ratingProfiles: Array<Record<string, unknown>>;
-  ratingEvents: Array<Record<string, unknown>>;
+  counters: Array<Record<string, unknown>>;
+  counterCheckIns: Array<Record<string, unknown>>;
 }
 
 export const state: DbState = {
   users: [],
-  goals: [],
-  roadmaps: [],
-  milestones: [],
-  tasks: [],
-  proofs: [],
-  trainingLogs: [],
-  coachMessages: [],
-  ratingProfiles: [],
-  ratingEvents: [],
+  counters: [],
+  counterCheckIns: [],
 };
 
 function reset() {
   state.users = [];
-  state.goals = [];
-  state.roadmaps = [];
-  state.milestones = [];
-  state.tasks = [];
-  state.proofs = [];
-  state.trainingLogs = [];
-  state.coachMessages = [];
-  state.ratingProfiles = [];
-  state.ratingEvents = [];
+  state.counters = [];
+  state.counterCheckIns = [];
   delete (globalThis as { __testUserId?: string }).__testUserId;
 }
 
@@ -72,26 +48,12 @@ function inferTableName(t: unknown): string {
 
 function rowsFor(tableName: string): Array<Record<string, unknown>> {
   switch (tableName) {
-    case 'goals':
-      return state.goals;
-    case 'roadmaps':
-      return state.roadmaps;
-    case 'milestones':
-      return state.milestones;
-    case 'tasks':
-      return state.tasks;
-    case 'proofs_of_work':
-      return state.proofs;
-    case 'training_logs':
-      return state.trainingLogs;
     case 'users':
       return state.users;
-    case 'coach_messages':
-      return state.coachMessages;
-    case 'rating_profiles':
-      return state.ratingProfiles;
-    case 'rating_events':
-      return state.ratingEvents;
+    case 'counters':
+      return state.counters;
+    case 'counter_check_ins':
+      return state.counterCheckIns;
     default:
       return [];
   }
@@ -105,10 +67,6 @@ vi.mock('@/lib/db', () => {
     return `00000000-0000-4000-8000-${idCounter.n.toString(16).padStart(12, '0')}`;
   };
 
-  /**
-   * A chain object that is also a thenable so it can be awaited at any
-   * stage (Drizzle queries return a thenable that resolves to rows).
-   */
   function chain(rows: Array<Record<string, unknown>>): PromiseLike<unknown[]> & {
     where: (..._args: unknown[]) => ReturnType<typeof chain>;
     orderBy: (..._args: unknown[]) => ReturnType<typeof chain>;
@@ -132,17 +90,8 @@ vi.mock('@/lib/db', () => {
 
   const finders = {
     users: { findFirst: async () => state.users[0] ?? null },
-    goals: { findFirst: async () => state.goals[0] ?? null },
-    roadmaps: { findFirst: async () => state.roadmaps[0] ?? null },
-    milestones: { findFirst: async () => state.milestones[0] ?? null },
-    tasks: {
-      findFirst: async () => {
-        // Tests stash a task with id 't1'; return it.
-        return state.tasks[0] ?? null;
-      },
-    },
-    coachMessages: { findFirst: async () => state.coachMessages[0] ?? null },
-    ratingProfiles: { findFirst: async () => state.ratingProfiles[0] ?? null },
+    counters: { findFirst: async () => state.counters[0] ?? null },
+    counterCheckIns: { findFirst: async () => state.counterCheckIns[0] ?? null },
   };
 
   const db = {
@@ -157,24 +106,24 @@ vi.mock('@/lib/db', () => {
       values: (vals: Record<string, unknown>) => {
         const tableName = inferTableName(t);
         const row: Record<string, unknown> = { id: newId(), ...vals };
-        if (tableName === 'proofs_of_work') {
-          row.submittedAt = new Date().toISOString();
-        }
         let persisted = false;
         const persist = () => {
           if (persisted) return;
           rowsFor(tableName).push(row);
           persisted = true;
         };
-        const inserted = {
+        return {
           returning: async () => {
             persist();
             return [row];
           },
-          onConflictDoUpdate: () => ({
-            returning: async () => {
+          onConflictDoNothing: () => ({
+            then: (
+              onFulfilled?: (value: unknown) => unknown,
+              onRejected?: (reason: unknown) => unknown,
+            ) => {
               persist();
-              return [row];
+              return Promise.resolve(undefined).then(onFulfilled, onRejected);
             },
           }),
           then: (
@@ -185,7 +134,6 @@ vi.mock('@/lib/db', () => {
             return Promise.resolve(undefined).then(onFulfilled, onRejected);
           },
         };
-        return inserted;
       },
     }),
     update: () => ({
@@ -193,7 +141,7 @@ vi.mock('@/lib/db', () => {
         where: () => ({ returning: async () => [{}] }),
       }),
     }),
-    delete: () => ({ where: () => ({}) }),
+    delete: () => ({ where: () => ({ returning: async () => [{ id: 'x' }] }) }),
   };
   return { db };
 });
@@ -221,14 +169,6 @@ vi.mock('@/lib/auth', async () => {
     },
   };
 });
-
-// Stub `@/lib/inngest` so `inngest.send(...)` is a no-op in tests.
-vi.mock('@/lib/inngest', () => ({
-  inngest: {
-    send: async () => undefined,
-  },
-  functions: [],
-}));
 
 export function signInAs(userId: string) {
   (globalThis as { __testUserId?: string }).__testUserId = userId;
