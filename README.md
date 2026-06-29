@@ -1,42 +1,30 @@
 # NoTomorrow
 
-A Hajime no Ippo–themed builder's gym. Set an audacious goal, get a coach-generated
-roadmap, ship proof of work, watch your Stamina/Expertise ratings climb (or get
-knocked down).
-
-See [`arch/`](./arch/) for the full architecture. Start with
-[`arch/README.md`](./arch/README.md).
+A GitHub-style streak tracker. Name a thread (gym, badminton, builder), tap **+1
+today**, watch the contribution grid fill in.
 
 ## Repo layout
 
 ```
-apps/web      Next.js 15 app (UI + REST API)
-apps/coach    Python FastAPI Coach Service (LLM orchestration)
-packages/db   Drizzle schema + migrations + client
-packages/domain  Zod contracts shared across runtimes
-packages/ui   Theme tokens, base components, Lottie assets
-packages/prompts  Versioned LLM prompts + loader
-infra/inngest Background job definitions
-scripts       Repo-wide dev scripts
-arch          Architecture docs, TRACKER, per-directory PLAN.md
+apps/web              Next.js 15 app (UI + REST API)
+apps/desktop          Electron launcher (.dmg)
+packages/db           Drizzle Postgres schema + migrations + client
+packages/db-sqlite    SQLite mirror used by the desktop build
+packages/ui           Theme tokens, base components, Lottie assets
+scripts               Repo-wide dev scripts
 ```
 
 ## Local dev
 
 ```bash
 cp .env.example .env
-docker compose up -d
+docker compose up -d postgres
 pnpm install
 pnpm db:migrate
-pnpm db:seed
 pnpm dev
 ```
 
-Runs:
-- Web app on `:3000`
-- Coach Service on `:8000`
-- Inngest dev on `:8288`
-- Postgres on `:5432`, Redis on `:6379`, MinIO on `:9000`/`:9001`
+Runs the web app on `:3000` and Postgres on `:5432`.
 
 ## Useful scripts
 
@@ -44,18 +32,9 @@ Runs:
 pnpm lint            # biome check
 pnpm typecheck       # turbo run typecheck
 pnpm test            # turbo run test
-pnpm db:reset        # drop + recreate + reseed local db
-pnpm evals           # run prompt eval suite
+pnpm db:reset        # drop + recreate + re-apply migrations (local only)
 pnpm check:env       # validate .env against .env.example
-pnpm gen:pydantic    # regenerate Pydantic models from domain JSON Schema
 ```
-
-## Coordination
-
-Per-directory `PLAN.md` files describe scope, deps, and acceptance criteria.
-[`arch/TRACKER.md`](./arch/TRACKER.md) is the live status board with interface
-contracts and the breaking-change protocol. Read it before starting work in any
-sub-directory.
 
 ## Mac desktop app
 
@@ -75,7 +54,7 @@ pnpm --filter desktop run icon
 pnpm build:desktop
 ```
 
-Output: `apps/desktop/dist-electron/NoTomorrow-0.1.0-arm64.dmg`
+Output: `apps/desktop/dist-electron/NoTomorrow-<version>-arm64.dmg`
 (about ~150 MB, Apple Silicon).
 
 ### Install
@@ -97,7 +76,7 @@ Output: `apps/desktop/dist-electron/NoTomorrow-0.1.0-arm64.dmg`
 # remove the application
 rm -rf /Applications/NoTomorrow.app
 
-# remove user data (SQLite db + Electron caches) — destroys your goals & log
+# remove user data (SQLite db + Electron caches) — destroys your counters & history
 rm -rf ~/Library/Application\ Support/NoTomorrow
 
 # old dev-run cache, if you ever ran `pnpm --filter desktop dev`
