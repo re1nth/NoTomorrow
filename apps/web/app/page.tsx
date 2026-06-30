@@ -1,88 +1,102 @@
+'use client';
+
+import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Button, Card } from '@/lib/ui';
+import { Button } from '@/lib/ui';
 
 /**
- * Public landing page. Single CTA into the Counters app.
+ * Landing page. Single punchy CTA into Counters. Sunset gradient background
+ * with a comic-style POW! burst behind the title — nothing else competing
+ * for attention.
  */
 export default function HomePage() {
   return (
     <main className="sunset-hero-with-sun relative min-h-screen flex flex-col items-center justify-center px-6 py-16 overflow-hidden">
-      <RooftopSilhouette />
-      <div className="relative max-w-2xl text-center space-y-6 z-10">
-        <h1 className="font-display text-6xl md:text-ko-stamp tracking-tight text-charcoal drop-shadow-[0_2px_24px_rgba(0,0,0,0.55)]">
-          No Tomorrow
-        </h1>
-        <p className="text-lg text-charcoal/85">
-          One thread, one punch a day. Don&apos;t break the chain.
-        </p>
-        <Card
-          tone="glove"
-          className="text-left bg-canvas/85 backdrop-blur-md border border-charcoal-soft/20 shadow-ring"
+      <div className="relative z-10 text-center space-y-8 max-w-2xl">
+        <div className="relative inline-block">
+          <PowBurst />
+          <motion.h1
+            initial={{ scale: 0.92, rotate: -3, opacity: 0 }}
+            animate={{ scale: 1, rotate: -3, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 140, damping: 14 }}
+            className="relative font-display tracking-tighter text-charcoal leading-none
+                       text-7xl md:text-9xl drop-shadow-[0_4px_28px_rgba(0,0,0,0.65)]"
+          >
+            NO
+            <br />
+            TOMORROW
+          </motion.h1>
+        </div>
+
+        <motion.p
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.45 }}
+          className="font-display uppercase tracking-[0.3em] text-sm md:text-base text-charcoal drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]"
         >
-          <p className="font-display uppercase tracking-wider text-sm text-sunset-amber">
-            Round 1
-          </p>
-          <h2 className="text-2xl font-display mt-1 mb-3 text-charcoal">
-            Track every streak that matters.
-          </h2>
-          <p className="text-charcoal-soft mb-4">
-            Gym, badminton, builder — name a thread, hit +1 a day, watch the
-            heatmap fill.
-          </p>
+          Show up. Throw the punch. Every day.
+        </motion.p>
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.94 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.45, type: 'spring', stiffness: 200, damping: 18 }}
+        >
           <Link href="/counters">
-            <Button variant="primary" size="lg">
-              Step into the ring
+            <Button
+              variant="primary"
+              size="lg"
+              className="text-lg md:text-xl px-8 py-4 shadow-[0_8px_30px_rgba(192,57,43,0.45)]"
+            >
+              🥊 Step into the ring
             </Button>
           </Link>
-        </Card>
+        </motion.div>
       </div>
     </main>
   );
 }
 
 /**
- * Inline SVG silhouette — a single boxer figure on a rooftop railing,
- * profile to the right where the sun sits. Pure black so it reads against
- * the gradient at every size. Ships with the bundle, no asset to load.
+ * Comic-book POW! burst sitting behind the title. Pure SVG so it scales
+ * cleanly and ships zero bytes of raster.
  */
-function RooftopSilhouette() {
+function PowBurst() {
   return (
-    <svg
+    <motion.svg
       aria-hidden
-      viewBox="0 0 1600 900"
-      preserveAspectRatio="xMidYMax slice"
-      className="absolute inset-x-0 bottom-0 w-full h-[60%] pointer-events-none"
+      viewBox="0 0 600 600"
+      className="absolute -inset-12 -z-10 pointer-events-none"
+      initial={{ scale: 0.7, rotate: -12, opacity: 0 }}
+      animate={{ scale: 1, rotate: -8, opacity: 1 }}
+      transition={{ delay: 0.1, type: 'spring', stiffness: 130, damping: 12 }}
     >
-      {/* far rooftops / horizon */}
-      <path
-        fill="#0B0908"
-        opacity="0.55"
-        d="M0,720 L120,720 L120,700 L220,700 L220,725 L380,725 L380,690 L520,690 L520,720 L700,720 L700,705 L860,705 L860,735 L1020,735 L1020,700 L1180,700 L1180,720 L1340,720 L1340,710 L1600,710 L1600,900 L0,900 Z"
+      <defs>
+        <radialGradient id="powGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#F7C566" stopOpacity="0.85" />
+          <stop offset="55%" stopColor="#E66B4A" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#B73E63" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+      {/* Soft halo */}
+      <circle cx="300" cy="300" r="240" fill="url(#powGlow)" />
+      {/* Jagged star — 24-point burst */}
+      <polygon
+        fill="#F7C566"
+        opacity="0.92"
+        points="300,40 320,150 410,90 380,200 500,180 410,260 560,300 410,340
+                500,420 380,400 410,510 320,450 300,560 280,450 190,510 220,400
+                100,420 190,340 40,300 190,260 100,180 220,200 190,90 280,150"
       />
-      {/* nearer rooftop slab */}
-      <path
-        fill="#0B0908"
+      {/* Inner star — orange */}
+      <polygon
+        fill="#E66B4A"
         opacity="0.85"
-        d="M0,820 L1600,820 L1600,900 L0,900 Z"
+        points="300,110 314,190 380,150 360,225 440,215 376,265 470,300 376,335
+                440,385 360,375 380,450 314,410 300,490 286,410 220,450 240,375
+                160,385 224,335 130,300 224,265 160,215 240,225 220,150 286,190"
       />
-      {/* railing */}
-      <rect x="0" y="804" width="1600" height="6" fill="#0B0908" />
-      {/* boxer silhouette — leaning on the railing, looking toward the sun */}
-      <g fill="#050304">
-        {/* legs */}
-        <rect x="1115" y="730" width="14" height="74" />
-        <rect x="1135" y="730" width="14" height="74" />
-        {/* hips → torso */}
-        <path d="M1100,690 L1170,690 L1162,732 L1108,732 Z" />
-        {/* shoulders / arms leaning forward on rail */}
-        <path d="M1090,656 L1180,656 L1196,710 L1078,710 Z" />
-        {/* forward arm bracing on railing */}
-        <path d="M1182,664 L1230,792 L1218,796 L1170,672 Z" />
-        {/* head */}
-        <circle cx="1134" cy="640" r="22" />
-        {/* hair tuft */}
-        <path d="M1118,624 q14,-18 32,-2 l-6,6 q-12,-10 -22,2 z" />
-      </g>
-    </svg>
+    </motion.svg>
   );
 }
+
