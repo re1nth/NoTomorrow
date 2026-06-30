@@ -3,6 +3,8 @@
 A GitHub-style streak tracker. Name a thread (gym, badminton, builder), tap **+1
 today**, watch the contribution grid fill in.
 
+![NoTomorrow landing page](./docs/home.png)
+
 ## Repo layout
 
 ```
