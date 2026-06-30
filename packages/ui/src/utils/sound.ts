@@ -2,13 +2,10 @@
  * Tiny sound trigger helper.
  *
  * Components that take a `sound` prop should call `playSound` only when
- * `sound === true`. Default is OFF — see PLAN.md acceptance criteria:
+ * `sound === true`. Default is OFF.
  *
- *   "All sound triggers are gated behind a `sound` prop, default off."
- *
- * Real audio files are intentionally stubbed; consumer apps will wire actual
- * Audio sources via a `SoundProvider` in a later phase (see PLAN.md open
- * questions). For now this is a safe no-op when given an unknown `id`.
+ * Real audio files are intentionally stubbed; consumer apps wire actual Audio
+ * sources via `registerSound` at boot. Safe no-op when given an unknown `id`.
  */
 
 export type SoundId = 'bell' | 'punch' | 'ko' | 'countdown';
