@@ -62,9 +62,51 @@ export default function CountersPage() {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: '', initialCount: 0 });
   const [pulsing, setPulsing] = useState<string | null>(null);
+  // `today` in state so a mount that survives midnight (or a laptop resume
+  // from sleep) still re-enables "+1 today" without a page reload.
+  const [today, setToday] = useState(todayLocal);
 
   useEffect(() => {
     void refresh();
+  }, []);
+
+  // Fire once at the next local midnight, then reschedule daily. Also
+  // re-checks on tab focus / visibility resume so a wake-from-sleep
+  // catches up even if the timer was throttled.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    function schedule() {
+      const now = new Date();
+      const nextMidnight = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate() + 1,
+        0,
+        0,
+        5, // 5s past midnight so any TZ rounding lands on the new day
+      );
+      const ms = Math.max(1000, nextMidnight.getTime() - now.getTime());
+      timer = setTimeout(() => {
+        setToday(todayLocal());
+        void refresh();
+        schedule();
+      }, ms);
+    }
+    function catchUp() {
+      const now = todayLocal();
+      setToday((prev) => {
+        if (prev !== now) void refresh();
+        return now;
+      });
+    }
+    schedule();
+    document.addEventListener('visibilitychange', catchUp);
+    window.addEventListener('focus', catchUp);
+    return () => {
+      if (timer) clearTimeout(timer);
+      document.removeEventListener('visibilitychange', catchUp);
+      window.removeEventListener('focus', catchUp);
+    };
   }, []);
 
   async function refresh() {
@@ -219,7 +261,7 @@ export default function CountersPage() {
                 key={c.id}
                 counter={c}
                 pulsing={pulsing === c.id}
-                today={todayLocal()}
+                today={today}
                 onCheckIn={() => checkIn(c.id)}
                 onDelete={() => remove(c.id)}
               />
