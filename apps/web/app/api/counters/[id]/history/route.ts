@@ -1,26 +1,15 @@
-import { and, eq, gte } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { counterCheckIns, counters } from '@notomorrow/db';
 import { db } from '@/lib/db';
 import { requireUserOrTest, UnauthorizedError } from '@/lib/auth';
 
 /**
- * GET /api/counters/:id/history — list YYYY-MM-DD strings the counter was
- * checked in on within the trailing ~53-week window the heatmap renders.
- * Scoped to the caller (the counter must belong to them).
+ * GET /api/counters/:id/history — every YYYY-MM-DD the counter was checked
+ * in on, all the way back to the first check-in. Scoped to the caller (the
+ * counter must belong to them). No windowing — the check-in log is
+ * append-only and the detail page renders the full history.
  */
-
-const WINDOW_DAYS = 371;
-
-function isoDay(d: Date): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'UTC',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(d);
-}
-
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -42,16 +31,9 @@ export async function GET(
   if (!owns) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
-  const cutoff = new Date();
-  cutoff.setUTCDate(cutoff.getUTCDate() - WINDOW_DAYS);
   const rows = await db
     .select({ day: counterCheckIns.day })
     .from(counterCheckIns)
-    .where(
-      and(
-        eq(counterCheckIns.counterId, id),
-        gte(counterCheckIns.day, isoDay(cutoff)),
-      ),
-    );
+    .where(eq(counterCheckIns.counterId, id));
   return NextResponse.json({ days: rows.map((r) => r.day) });
 }
