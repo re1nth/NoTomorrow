@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { Button, Card } from '@/lib/ui';
 import { beltFor, todayLocal } from '../belts';
 
 interface CounterRow {
@@ -118,7 +119,78 @@ function DetailBody({
           <StripBlock key={s.key} strip={s} fillHex={current.hex} today={today} />
         ))}
       </div>
+
+      <DangerZone counter={counter} />
     </div>
+  );
+}
+
+/**
+ * Delete a counter — intentionally isolated at the bottom of the detail
+ * page and gated behind typing the thread's exact name so a stray click
+ * can't wipe a streak. Case-sensitive; the match must be one-for-one.
+ */
+function DangerZone({ counter }: { counter: CounterRow }) {
+  const router = useRouter();
+  const [typed, setTyped] = useState('');
+  const [pending, setPending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const armed = typed === counter.name;
+
+  async function del() {
+    setErr(null);
+    setPending(true);
+    try {
+      const res = await fetch(`/api/counters/${counter.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        setErr(`Delete failed: ${res.status}`);
+        return;
+      }
+      router.push('/counters');
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="mt-16">
+      <Card
+        tone="glove"
+        className="border border-glove-deep/60 bg-canvas-soft"
+      >
+        <h2 className="font-display uppercase tracking-[0.2em] text-sm text-glove-deep mb-1">
+          Danger zone
+        </h2>
+        <p className="text-sm text-charcoal-soft mb-4">
+          Deleting <span className="text-charcoal">{counter.name}</span> wipes
+          every check-in and the entire heatmap. This can't be undone.
+        </p>
+        <label className="block text-sm mb-3">
+          <span className="block mb-1 uppercase tracking-wider text-xs text-charcoal-soft">
+            Type <span className="text-charcoal">{counter.name}</span> to confirm
+          </span>
+          <input
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={counter.name}
+            spellCheck={false}
+            autoComplete="off"
+            className="w-full rounded-glove border border-charcoal/20 bg-canvas px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-glove"
+          />
+        </label>
+        {err ? <p className="text-sm text-glove-deep mb-3">{err}</p> : null}
+        <Button
+          variant="primary"
+          size="lg"
+          disabled={!armed || pending}
+          onClick={del}
+        >
+          {pending ? 'Deleting…' : 'Delete this thread'}
+        </Button>
+      </Card>
+    </section>
   );
 }
 

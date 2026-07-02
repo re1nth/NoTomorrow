@@ -123,16 +123,6 @@ export default function CountersPage() {
     return true;
   }
 
-  async function remove(id: string) {
-    if (!confirm('Delete this counter? The streak is gone for good.')) return;
-    const res = await fetch(`/api/counters/${id}`, { method: 'DELETE' });
-    if (!res.ok) {
-      setError(`Delete failed: ${res.status}`);
-      return;
-    }
-    setItems((cs) => cs.filter((c) => c.id !== id));
-  }
-
   return (
     <div className="max-w-5xl mx-auto">
       <header className="flex items-baseline justify-between mb-6">
@@ -222,7 +212,6 @@ export default function CountersPage() {
                 pulsing={pulsing === c.id}
                 today={today}
                 onCheckIn={() => checkIn(c.id)}
-                onDelete={() => remove(c.id)}
               />
             ))}
           </AnimatePresence>
@@ -237,13 +226,11 @@ function CounterCard({
   pulsing,
   today,
   onCheckIn,
-  onDelete,
 }: {
   counter: CounterRow;
   pulsing: boolean;
   today: string;
   onCheckIn: () => Promise<boolean>;
-  onDelete: () => void;
 }) {
   const { current, next, progress } = beltFor(counter.count);
   const checkedToday = counter.lastCheckIn === today;
@@ -302,22 +289,12 @@ function CounterCard({
             <div className="font-display text-2xl tracking-wider">{counter.name}</div>
             <BeltBadge belt={current} />
           </div>
-          <div className="flex items-center gap-3">
-            <Link
-              href={`/counters/${counter.id}`}
-              className="text-[11px] uppercase tracking-wider text-charcoal-soft hover:text-charcoal transition-colors"
-            >
-              History →
-            </Link>
-            <button
-              type="button"
-              onClick={onDelete}
-              className="text-xs text-charcoal-soft hover:text-glove-deep transition-colors"
-              aria-label="Delete counter"
-            >
-              ✕
-            </button>
-          </div>
+          <Link
+            href={`/counters/${counter.id}`}
+            className="text-[11px] uppercase tracking-wider text-charcoal-soft hover:text-charcoal transition-colors"
+          >
+            History →
+          </Link>
         </div>
 
         <div className="flex items-end justify-between mt-4">
