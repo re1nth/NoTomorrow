@@ -12,7 +12,8 @@
     "electron-rebuild": "electron-rebuild -f -w better-sqlite3",
     "dev": "npm run build && NOTOMORROW_RUNTIME=desktop electron .",
     "icon": "python3 build/make-icon.py && iconutil --convert icns build/icon.iconset --output build/icon.icns",
-    "dist": "npm run build && npm run electron-rebuild && electron-builder --mac",
+    "web:prod-build": "cd ../web && NOTOMORROW_RUNTIME=desktop npx next build",
+    "dist": "npm run build && npm run web:prod-build && npm run electron-rebuild && electron-builder --mac",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
