@@ -5,6 +5,7 @@ import { ensureLocalUser } from './bootstrap';
 import { runMigrations } from './migrate';
 import { getMigrationsDir, getSqliteDbPath, getUserDataDir, getWebAppDir } from './paths';
 import { startNext } from './server';
+import { setupPomodoroTray } from './tray';
 
 async function boot(): Promise<void> {
   // Pin the userData folder name so the packaged .app and the dev `electron .`
@@ -76,6 +77,8 @@ async function boot(): Promise<void> {
   });
 
   await win.loadURL(url);
+
+  setupPomodoroTray(() => BrowserWindow.getAllWindows()[0] ?? null);
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();

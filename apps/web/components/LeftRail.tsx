@@ -1,6 +1,9 @@
 import Link from 'next/link';
 
-const links = [{ href: '/counters', label: 'Counters' }] as const;
+const links = [
+  { href: '/counters', label: 'Counters' },
+  { href: '/pomodoro', label: 'Pomodoro' },
+] as const;
 
 /**
  * Persistent left navigation for the authenticated app shell.

@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { BellToggle } from '@/components/BellToggle';
 import { LeftRail } from '@/components/LeftRail';
 import { getUserId } from '@/lib/auth';
 
@@ -25,7 +24,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <div className="font-display uppercase tracking-wider text-sm text-charcoal-soft">
             No Tomorrow
           </div>
-          <BellToggle />
         </header>
         <main className="flex-1 p-6">{children}</main>
       </div>
