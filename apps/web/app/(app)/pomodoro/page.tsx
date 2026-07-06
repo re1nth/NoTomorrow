@@ -6,9 +6,9 @@ import { Button, Card } from '@/lib/ui';
 type Mode = 'idle' | 'running' | 'paused' | 'ended';
 
 const PRESETS = [
-  { label: '25 min', minutes: 25 },
-  { label: '5 min', minutes: 5 },
-  { label: '15 min', minutes: 15 },
+  { label: '30 min', minutes: 30 },
+  { label: '45 min', minutes: 45 },
+  { label: '1 hr', minutes: 60 },
 ] as const;
 
 function formatClock(ms: number): string {
@@ -68,8 +68,8 @@ function playBuzz(): void {
 }
 
 export default function PomodoroPage() {
-  const [totalMs, setTotalMs] = useState<number>(25 * 60_000);
-  const [remainingMs, setRemainingMs] = useState<number>(25 * 60_000);
+  const [totalMs, setTotalMs] = useState<number>(30 * 60_000);
+  const [remainingMs, setRemainingMs] = useState<number>(30 * 60_000);
   const [mode, setMode] = useState<Mode>('idle');
   const [custom, setCustom] = useState<string>('');
   const endsAtRef = useRef<number | null>(null);
