@@ -29,6 +29,13 @@
       "when": 1782752294000,
       "tag": "0003_drop_goals_tree",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1783641600000,
+      "tag": "0004_perf_sessions",
+      "breakpoints": true
     }
   ]
 }
