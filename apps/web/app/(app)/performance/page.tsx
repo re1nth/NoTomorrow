@@ -449,8 +449,11 @@ function ScoreHeatmap({ points, loading }: { points: HistoryPoint[]; loading: bo
                 const bg = cell.inFuture
                   ? 'transparent'
                   : cell.score === 0
-                    ? 'rgba(0,0,0,0.06)'
-                    : `rgba(220, 38, 38, ${0.2 + intensity * 0.8})`;
+                    ? 'rgba(234, 228, 214, 0.18)'
+                    : `rgba(220, 38, 38, ${0.35 + intensity * 0.65})`;
+                const border = cell.inFuture
+                  ? '1px dashed rgba(234, 228, 214, 0.15)'
+                  : '1px solid rgba(234, 228, 214, 0.28)';
                 return (
                   <div
                     key={cell.day}
@@ -463,6 +466,7 @@ function ScoreHeatmap({ points, loading }: { points: HistoryPoint[]; loading: bo
                       width: CELL,
                       height: CELL,
                       backgroundColor: bg,
+                      border,
                       borderRadius: 2,
                     }}
                   />
