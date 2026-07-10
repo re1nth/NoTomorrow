@@ -320,11 +320,21 @@ function StripBlock({
   fillHex: string;
   today: string;
 }) {
+  const [hover, setHover] = useState<{ iso: string; filled: boolean; inFuture: boolean } | null>(
+    null,
+  );
   return (
     <section>
       <div className="flex items-baseline justify-between mb-2">
         <span className="font-display uppercase tracking-[0.2em] text-xs text-charcoal-soft">
           {strip.label}
+        </span>
+        <span className="text-[10px] text-charcoal-soft tabular-nums h-4">
+          {hover
+            ? hover.inFuture
+              ? `${hover.iso} · —`
+              : `${hover.iso}${hover.filled ? ' · checked in' : ''}`
+            : ''}
         </span>
       </div>
       {/* Month label row — same trick as the card mini-heatmap. */}
@@ -351,25 +361,36 @@ function StripBlock({
           gridTemplateRows: 'repeat(7, minmax(0, 1fr))',
           gridAutoFlow: 'column',
         }}
+        onMouseLeave={() => setHover(null)}
       >
         {strip.columns.flatMap((col) =>
-          col.map((c) => (
-            <div
-              key={c.iso}
-              title={`${c.iso}${c.filled ? ' — checked in' : ''}`}
-              className="aspect-square rounded-[2px]"
-              style={{
-                backgroundColor: c.inFuture
-                  ? 'transparent'
-                  : c.filled
-                    ? fillHex
-                    : 'rgba(234, 228, 214, 0.08)',
-                outline:
-                  c.iso === today ? '1px solid rgba(234, 228, 214, 0.65)' : 'none',
-                outlineOffset: c.iso === today ? 1 : 0,
-              }}
-            />
-          )),
+          col.map((c) => {
+            const isHovered = hover?.iso === c.iso;
+            const outline = isHovered
+              ? '1px solid rgba(234, 228, 214, 0.9)'
+              : c.iso === today
+                ? '1px solid rgba(234, 228, 214, 0.65)'
+                : 'none';
+            return (
+              <div
+                key={c.iso}
+                title={`${c.iso}${c.filled ? ' — checked in' : ''}`}
+                className="aspect-square rounded-[2px]"
+                onMouseEnter={() =>
+                  setHover({ iso: c.iso, filled: c.filled, inFuture: c.inFuture })
+                }
+                style={{
+                  backgroundColor: c.inFuture
+                    ? 'transparent'
+                    : c.filled
+                      ? fillHex
+                      : 'rgba(234, 228, 214, 0.08)',
+                  outline,
+                  outlineOffset: outline === 'none' ? 0 : 1,
+                }}
+              />
+            );
+          }),
         )}
       </div>
     </section>

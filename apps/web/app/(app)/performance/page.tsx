@@ -363,6 +363,9 @@ function ScoreHeatmap({ points, loading }: { points: HistoryPoint[]; loading: bo
   const WEEKS = 26;
   const CELL = 13;
   const GAP = 3;
+  const [hover, setHover] = useState<{ day: string; score: number; inFuture: boolean } | null>(
+    null,
+  );
 
   const { columns, monthLabels, max } = useMemo(() => {
     const scoreByDay = new Map<string, number>();
@@ -418,15 +421,19 @@ function ScoreHeatmap({ points, loading }: { points: HistoryPoint[]; loading: bo
         <span className="uppercase tracking-wider text-[10px] text-charcoal-soft">
           Last {WEEKS} weeks
         </span>
-        <span className="text-[10px] text-charcoal-soft">
-          {loading
-            ? 'loading…'
-            : bestDay
-              ? `best ${bestDay.score} · ${points.length} ${points.length === 1 ? 'day' : 'days'}`
-              : 'no sessions yet'}
+        <span className="text-[10px] text-charcoal-soft tabular-nums">
+          {hover
+            ? hover.inFuture
+              ? `${hover.day} · —`
+              : `${hover.day} · score ${hover.score}`
+            : loading
+              ? 'loading…'
+              : bestDay
+                ? `best ${bestDay.score} · ${points.length} ${points.length === 1 ? 'day' : 'days'}`
+                : 'no sessions yet'}
         </span>
       </div>
-      <div className="inline-block">
+      <div className="inline-block" onMouseLeave={() => setHover(null)}>
         <div
           className="relative text-[9px] uppercase tracking-wider text-charcoal-soft"
           style={{ height: 12, width: WEEKS * (CELL + GAP) }}
@@ -454,6 +461,7 @@ function ScoreHeatmap({ points, loading }: { points: HistoryPoint[]; loading: bo
                 const border = cell.inFuture
                   ? '1px dashed rgba(234, 228, 214, 0.15)'
                   : '1px solid rgba(234, 228, 214, 0.28)';
+                const isHovered = hover?.day === cell.day;
                 return (
                   <div
                     key={cell.day}
@@ -462,12 +470,16 @@ function ScoreHeatmap({ points, loading }: { points: HistoryPoint[]; loading: bo
                         ? cell.day
                         : `${cell.day} — score ${cell.score}`
                     }
+                    onMouseEnter={() => setHover(cell)}
                     style={{
                       width: CELL,
                       height: CELL,
                       backgroundColor: bg,
                       border,
                       borderRadius: 2,
+                      outline: isHovered ? '1px solid rgba(234, 228, 214, 0.7)' : 'none',
+                      outlineOffset: isHovered ? 1 : 0,
+                      cursor: 'default',
                     }}
                   />
                 );

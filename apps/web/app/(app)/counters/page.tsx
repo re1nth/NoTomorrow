@@ -388,6 +388,9 @@ function Heatmap({
   fillHex: string;
 }) {
   const WEEKS = 53;
+  const [hover, setHover] = useState<{ day: string; filled: boolean; inFuture: boolean } | null>(
+    null,
+  );
   const { columns, monthLabels } = useMemo(() => {
     // Anchor on today, parsed as local date (avoid TZ drift from `new Date(today)`).
     const [y, m, d] = today.split('-').map(Number) as [number, number, number];
@@ -443,12 +446,16 @@ function Heatmap({
         <span className="uppercase tracking-wider text-[10px] text-charcoal-soft">
           Last year
         </span>
-        <span className="text-[10px] text-charcoal-soft">
-          {days.size} {days.size === 1 ? 'day' : 'days'}
+        <span className="text-[10px] text-charcoal-soft tabular-nums">
+          {hover
+            ? hover.inFuture
+              ? `${hover.day} · —`
+              : `${hover.day}${hover.filled ? ' · checked in' : ''}`
+            : `${days.size} ${days.size === 1 ? 'day' : 'days'}`}
         </span>
       </div>
       <div>
-        <div className="inline-block">
+        <div className="inline-block" onMouseLeave={() => setHover(null)}>
           {/* Month labels — positioned along the top row of cells. */}
           <div
             className="relative text-[9px] uppercase tracking-wider text-charcoal-soft"
@@ -478,11 +485,18 @@ function Heatmap({
               col.map((cell) => {
                 const filled = days.has(cell.day);
                 const isToday = cell.day === today;
+                const isHovered = hover?.day === cell.day;
+                const outline = isHovered
+                  ? '1px solid rgba(234, 228, 214, 0.85)'
+                  : isToday
+                    ? '1px solid rgba(234, 228, 214, 0.55)'
+                    : 'none';
                 return (
                   <div
                     key={cell.day}
                     title={`${cell.day}${filled ? ' — checked in' : ''}`}
                     className="rounded-[2px]"
+                    onMouseEnter={() => setHover({ day: cell.day, filled, inFuture: cell.inFuture })}
                     style={{
                       width: CELL,
                       height: CELL,
@@ -491,8 +505,8 @@ function Heatmap({
                         : filled
                           ? fillHex
                           : 'rgba(234, 228, 214, 0.10)',
-                      outline: isToday ? '1px solid rgba(234, 228, 214, 0.55)' : 'none',
-                      outlineOffset: isToday ? 1 : 0,
+                      outline,
+                      outlineOffset: outline === 'none' ? 0 : 1,
                       opacity: cell.inFuture ? 0 : 1,
                     }}
                   />
