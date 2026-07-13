@@ -71,7 +71,13 @@ export default function CounterDetailPage() {
     );
   }
 
-  return <DetailBody counter={counter} days={days} />;
+  return (
+    <DetailBody
+      counter={counter}
+      days={days}
+      onRenamed={(name) => setCounter((c) => (c ? { ...c, name } : c))}
+    />
+  );
 }
 
 const WEEKS_PER_STRIP = 53;
@@ -79,9 +85,11 @@ const WEEKS_PER_STRIP = 53;
 function DetailBody({
   counter,
   days,
+  onRenamed,
 }: {
   counter: CounterRow;
   days: Set<string>;
+  onRenamed: (name: string) => void;
 }) {
   const { current } = beltFor(counter.count);
   const today = todayLocal();
@@ -100,7 +108,7 @@ function DetailBody({
       </Link>
 
       <header className="mt-3 mb-8">
-        <h1 className="font-display text-4xl tracking-wider">{counter.name}</h1>
+        <EditableName counter={counter} onRenamed={onRenamed} />
         <div className="flex items-center gap-3 mt-2">
           <span
             className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider font-display"
@@ -121,6 +129,90 @@ function DetailBody({
       </div>
 
       <DangerZone counter={counter} />
+    </div>
+  );
+}
+
+function EditableName({
+  counter,
+  onRenamed,
+}: {
+  counter: CounterRow;
+  onRenamed: (name: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(counter.name);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  function beginEdit() {
+    setDraft(counter.name);
+    setErr(null);
+    setEditing(true);
+  }
+
+  async function save() {
+    const next = draft.trim();
+    if (!next || next === counter.name) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/counters/${counter.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: next }),
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? `Rename failed: ${res.status}`);
+      }
+      onRenamed(next);
+      setEditing(false);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!editing) {
+    return (
+      <button
+        type="button"
+        onClick={beginEdit}
+        title="Click to rename"
+        className="group inline-flex items-baseline gap-2 text-left"
+      >
+        <h1 className="font-display text-4xl tracking-wider">{counter.name}</h1>
+        <span className="text-xs uppercase tracking-wider text-charcoal-soft opacity-0 group-hover:opacity-100 transition-opacity">
+          Rename
+        </span>
+      </button>
+    );
+  }
+
+  return (
+    <div>
+      <input
+        autoFocus
+        value={draft}
+        maxLength={80}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') void save();
+          if (e.key === 'Escape') {
+            setEditing(false);
+            setErr(null);
+          }
+        }}
+        onBlur={() => void save()}
+        disabled={saving}
+        className="font-display text-4xl tracking-wider bg-transparent border-b border-charcoal/30 focus:border-charcoal focus:outline-none w-full max-w-xl"
+      />
+      {err ? <p className="text-sm text-glove-deep mt-2">{err}</p> : null}
     </div>
   );
 }
