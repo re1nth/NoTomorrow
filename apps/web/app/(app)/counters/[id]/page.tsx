@@ -107,19 +107,36 @@ function DetailBody({
         ← All counters
       </Link>
 
-      <header className="mt-3 mb-8">
-        <EditableName counter={counter} onRenamed={onRenamed} />
-        <div className="flex items-center gap-3 mt-2">
-          <span
-            className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider font-display"
-            style={{ backgroundColor: current.hex, color: current.ink }}
-          >
-            <span aria-hidden>●</span> {current.name} belt
-          </span>
-          <span className="text-xs text-charcoal-soft">
-            {counter.count} {counter.count === 1 ? 'day' : 'days'} total
-          </span>
+      <header className="mt-3 mb-8 flex items-start justify-between gap-6">
+        <div>
+          <EditableName counter={counter} onRenamed={onRenamed} />
+          <div className="flex items-center gap-3 mt-2">
+            <span
+              className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider font-display"
+              style={{ backgroundColor: current.hex, color: current.ink }}
+            >
+              <span aria-hidden>●</span> {current.name} belt
+            </span>
+            <span className="text-xs text-charcoal-soft">
+              {counter.count} {counter.count === 1 ? 'day' : 'days'} total
+            </span>
+          </div>
         </div>
+        {/* Current-belt Ippo — bigger on the detail page so the ripped sprite
+        is legible at 1:1-ish scale. Decorative only. */}
+        <img
+          aria-hidden
+          src={current.sticker}
+          alt=""
+          draggable={false}
+          className="pointer-events-none select-none shrink-0"
+          style={{
+            height: 152,
+            width: 'auto',
+            imageRendering: 'pixelated',
+            filter: 'drop-shadow(0 6px 12px rgba(0,0,0,0.3))',
+          }}
+        />
       </header>
 
       <div className="space-y-10">

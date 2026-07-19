@@ -5,16 +5,16 @@
  * within the current tier toward the next.
  */
 export const BELTS = [
-  { name: 'White', threshold: 0, hex: '#F5F1E6', ink: '#0B0908' },
-  { name: 'Yellow', threshold: 7, hex: '#F2A668', ink: '#0B0908' },
-  { name: 'Orange', threshold: 30, hex: '#E66B4A', ink: '#0B0908' },
-  { name: 'Green', threshold: 90, hex: '#5DAA5E', ink: '#0B0908' },
-  { name: 'Blue', threshold: 180, hex: '#5479C2', ink: '#EAE4D6' },
-  { name: 'Brown', threshold: 365, hex: '#7A4B2A', ink: '#EAE4D6' },
-  { name: 'Black', threshold: 720, hex: '#0B0908', ink: '#EAE4D6' },
-  { name: 'Black II', threshold: 1095, hex: '#2A1F3D', ink: '#EAE4D6' },
-  { name: 'Black III', threshold: 1825, hex: '#4B1E55', ink: '#EAE4D6' },
-  { name: 'Champion', threshold: 3650, hex: '#B73E63', ink: '#EAE4D6' },
+  { name: 'White', threshold: 0, hex: '#F5F1E6', ink: '#0B0908', sticker: '/stickers/white.png' },
+  { name: 'Yellow', threshold: 7, hex: '#F2A668', ink: '#0B0908', sticker: '/stickers/yellow.png' },
+  { name: 'Orange', threshold: 30, hex: '#E66B4A', ink: '#0B0908', sticker: '/stickers/orange.png' },
+  { name: 'Green', threshold: 90, hex: '#5DAA5E', ink: '#0B0908', sticker: '/stickers/green.png' },
+  { name: 'Blue', threshold: 180, hex: '#5479C2', ink: '#EAE4D6', sticker: '/stickers/blue.png' },
+  { name: 'Brown', threshold: 365, hex: '#7A4B2A', ink: '#EAE4D6', sticker: '/stickers/brown.png' },
+  { name: 'Black', threshold: 720, hex: '#0B0908', ink: '#EAE4D6', sticker: '/stickers/black.png' },
+  { name: 'Black II', threshold: 1095, hex: '#2A1F3D', ink: '#EAE4D6', sticker: '/stickers/black-ii.png' },
+  { name: 'Black III', threshold: 1825, hex: '#4B1E55', ink: '#EAE4D6', sticker: '/stickers/black-iii.png' },
+  { name: 'Champion', threshold: 3650, hex: '#B73E63', ink: '#EAE4D6', sticker: '/stickers/champion.png' },
 ] as const;
 
 export type Belt = (typeof BELTS)[number];

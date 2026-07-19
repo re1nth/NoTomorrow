@@ -284,17 +284,42 @@ function CounterCard({
           transition={{ duration: 0.8, ease: 'easeOut' }}
         />
 
-        <div className="flex items-start justify-between gap-3">
+        {/* Ippo sticker for the current belt — sits in the top-right corner
+        over the halo, pulses along with the check-in flash. Decorative only. */}
+        <motion.img
+          aria-hidden
+          src={current.sticker}
+          alt=""
+          draggable={false}
+          className="absolute right-4 top-4 pointer-events-none select-none"
+          style={{
+            height: 108,
+            width: 'auto',
+            imageRendering: 'pixelated',
+            filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.28))',
+          }}
+          initial={false}
+          animate={
+            pulsing
+              ? { scale: [1, 1.14, 1], rotate: [0, -3, 3, 0] }
+              : { scale: 1, rotate: 0 }
+          }
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        />
+
+        <div className="flex items-start justify-between gap-3 pr-24">
           <div>
             <div className="font-display text-2xl tracking-wider">{counter.name}</div>
-            <BeltBadge belt={current} />
+            <div className="flex items-center gap-3 flex-wrap">
+              <BeltBadge belt={current} />
+              <Link
+                href={`/counters/${counter.id}`}
+                className="text-[11px] uppercase tracking-wider text-charcoal-soft hover:text-charcoal transition-colors"
+              >
+                History →
+              </Link>
+            </div>
           </div>
-          <Link
-            href={`/counters/${counter.id}`}
-            className="text-[11px] uppercase tracking-wider text-charcoal-soft hover:text-charcoal transition-colors"
-          >
-            History →
-          </Link>
         </div>
 
         <div className="flex items-end justify-between mt-4">
