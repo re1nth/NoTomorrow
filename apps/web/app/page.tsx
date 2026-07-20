@@ -1,23 +1,25 @@
 'use client';
 
+import { Button } from '@/lib/ui';
 import { motion, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
-import { Button } from '@/lib/ui';
+import { Suspense, useState } from 'react';
 
 /**
- * Landing page. Single punchy CTA into Counters. Sunset gradient background
- * with a comic-style POW! burst behind the title — nothing else competing
- * for attention.
+ * Landing page. Anime-title-card treatment: pitch-black background, a huge
+ * red "NO TOMORROW" wordmark with a slash accent, and the top-tier Ippo
+ * sprite as the sole character. Nothing else — the previous sunset + POW
+ * + belt-parade version was too busy.
  *
- * Passing `?static=1` (used by the README screenshot capture) and the OS
- * "Reduce Motion" setting both make the page render at its animated-final
- * state without playing the intros.
+ * `?static=1` (used by the README screenshot capture) and the OS "Reduce
+ * Motion" setting both make the page land on its final visual state at
+ * first paint.
  */
 export default function HomePage() {
   return (
-    <main className="sunset-hero-with-sun relative min-h-screen flex flex-col items-center justify-center px-6 py-16 overflow-hidden">
+    <main className="relative min-h-screen flex items-center justify-center px-6 py-16 overflow-hidden bg-black">
+      <TitleCardBackdrop />
       <Suspense fallback={<HeroBlock staticRender={false} />}>
         <Hero />
       </Suspense>
@@ -33,64 +35,59 @@ function Hero() {
 }
 
 function HeroBlock({ staticRender }: { staticRender: boolean }) {
-  // When `staticRender`, initial === animate so framer-motion lands at the
-  // final visual state on the first paint.
   const titleProps = staticRender
-    ? { initial: { scale: 1, rotate: -3, opacity: 1 } }
+    ? { initial: { opacity: 1, y: 0, scale: 1 } }
     : {
-        initial: { scale: 0.92, rotate: -3, opacity: 0 },
-        animate: { scale: 1, rotate: -3, opacity: 1 },
-        transition: { type: 'spring' as const, stiffness: 140, damping: 14 },
+        initial: { opacity: 0, y: 24, scale: 0.96 },
+        animate: { opacity: 1, y: 0, scale: 1 },
+        transition: { duration: 0.55, delay: 0.15, ease: [0.16, 1, 0.3, 1] as const },
       };
-  const taglineProps = staticRender
-    ? { initial: { opacity: 1, y: 0 } }
+  const slashProps = staticRender
+    ? { initial: { scaleX: 1 } }
     : {
-        initial: { opacity: 0, y: 8 },
-        animate: { opacity: 1, y: 0 },
-        transition: { delay: 0.25, duration: 0.45 },
+        initial: { scaleX: 0 },
+        animate: { scaleX: 1 },
+        transition: { duration: 0.4, delay: 0.5, ease: [0.65, 0, 0.35, 1] as const },
       };
   const ctaProps = staticRender
-    ? { initial: { opacity: 1, scale: 1 } }
+    ? { initial: { opacity: 1, y: 0 } }
     : {
-        initial: { opacity: 0, scale: 0.94 },
-        animate: { opacity: 1, scale: 1 },
-        transition: {
-          delay: 0.45,
-          type: 'spring' as const,
-          stiffness: 200,
-          damping: 18,
-        },
+        initial: { opacity: 0, y: 10 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.45, delay: 0.75 },
       };
   return (
-    <div className="relative z-10 text-center space-y-8 max-w-2xl">
-      <div className="relative inline-block">
-        <PowBurst staticRender={staticRender} />
+    <div className="relative z-10 flex flex-col items-center gap-8">
+      <ChampionSprite staticRender={staticRender} />
+
+      <div className="flex flex-col items-center gap-3">
         <motion.h1
           {...titleProps}
-          className="relative font-display tracking-tighter text-charcoal leading-none
-                     text-7xl md:text-9xl drop-shadow-[0_4px_28px_rgba(0,0,0,0.65)]"
+          className="font-display text-[#E63946] leading-[0.82] tracking-[0.02em] text-center
+                     text-7xl md:text-[10rem]
+                     drop-shadow-[0_0_30px_rgba(230,57,70,0.35)]"
+          style={{
+            WebkitTextStroke: '1px rgba(0,0,0,0.25)',
+          }}
         >
           NO
           <br />
           TOMORROW
         </motion.h1>
-      </div>
 
-      <motion.p
-        {...taglineProps}
-        className="font-display uppercase tracking-[0.3em] text-sm md:text-base text-charcoal drop-shadow-[0_2px_10px_rgba(0,0,0,0.85)]"
-      >
-        Show up. Throw the punch. Every day.
-      </motion.p>
+        {/* Red slash — the anime-title-card horizontal accent. Animates
+        in left-to-right, like a brush stroke. */}
+        <motion.div
+          {...slashProps}
+          className="h-1.5 w-56 md:w-72 bg-[#E63946] origin-left rounded-sm"
+          style={{ boxShadow: '0 0 18px rgba(230,57,70,0.55)' }}
+        />
+      </div>
 
       <motion.div {...ctaProps}>
         <Link href="/counters">
-          <Button
-            variant="primary"
-            size="lg"
-            className="text-lg md:text-xl px-8 py-4 shadow-[0_8px_30px_rgba(192,57,43,0.45)]"
-          >
-            🥊 Step into the ring
+          <Button variant="primary" size="lg" className="text-lg md:text-xl px-8 py-4">
+            Step into the ring
           </Button>
         </Link>
       </motion.div>
@@ -99,50 +96,52 @@ function HeroBlock({ staticRender }: { staticRender: boolean }) {
 }
 
 /**
- * Comic-book POW! burst sitting behind the title. Pure SVG so it scales
- * cleanly and ships zero bytes of raster.
+ * Champion-belt Ippo — the "very last one" in the belt progression. Sits
+ * above the title as the single character on the page. Hides itself if
+ * the sprite file is ever missing so we never show a broken-image glyph.
  */
-function PowBurst({ staticRender }: { staticRender: boolean }) {
-  const burstProps = staticRender
-    ? { initial: { scale: 1, rotate: -8, opacity: 1 } }
+function ChampionSprite({ staticRender }: { staticRender: boolean }) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return null;
+  const props = staticRender
+    ? { initial: { opacity: 1, y: 0 } }
     : {
-        initial: { scale: 0.7, rotate: -12, opacity: 0 },
-        animate: { scale: 1, rotate: -8, opacity: 1 },
-        transition: { delay: 0.1, type: 'spring' as const, stiffness: 130, damping: 12 },
+        initial: { opacity: 0, y: -14 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const },
       };
   return (
-    <motion.svg
-      aria-hidden
-      viewBox="0 0 600 600"
-      className="absolute -inset-12 -z-10 pointer-events-none"
-      {...burstProps}
-    >
-      <defs>
-        <radialGradient id="powGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#F7C566" stopOpacity="0.85" />
-          <stop offset="55%" stopColor="#E66B4A" stopOpacity="0.55" />
-          <stop offset="100%" stopColor="#B73E63" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      {/* Soft halo */}
-      <circle cx="300" cy="300" r="240" fill="url(#powGlow)" />
-      {/* Jagged star — 24-point burst */}
-      <polygon
-        fill="#F7C566"
-        opacity="0.92"
-        points="300,40 320,150 410,90 380,200 500,180 410,260 560,300 410,340
-                500,420 380,400 410,510 320,450 300,560 280,450 190,510 220,400
-                100,420 190,340 40,300 190,260 100,180 220,200 190,90 280,150"
-      />
-      {/* Inner star — orange */}
-      <polygon
-        fill="#E66B4A"
-        opacity="0.85"
-        points="300,110 314,190 380,150 360,225 440,215 376,265 470,300 376,335
-                440,385 360,375 380,450 314,410 300,490 286,410 220,450 240,375
-                160,385 224,335 130,300 224,265 160,215 240,225 220,150 286,190"
-      />
-    </motion.svg>
+    <motion.img
+      {...props}
+      src="/stickers/champion.png"
+      alt=""
+      draggable={false}
+      onError={() => setBroken(true)}
+      className="pointer-events-none select-none"
+      style={{
+        height: 200,
+        width: 'auto',
+        imageRendering: 'pixelated',
+        filter: 'drop-shadow(0 12px 24px rgba(230,57,70,0.4))',
+      }}
+    />
   );
 }
 
+/**
+ * Faint red vignette on the black backdrop — barely visible, keeps the
+ * pure-black surface from reading as OLED-flat while staying out of the
+ * way of the title.
+ */
+function TitleCardBackdrop() {
+  return (
+    <div
+      aria-hidden
+      className="absolute inset-0 pointer-events-none"
+      style={{
+        background:
+          'radial-gradient(ellipse at 50% 45%, rgba(230,57,70,0.12) 0%, rgba(0,0,0,0) 55%)',
+      }}
+    />
+  );
+}
