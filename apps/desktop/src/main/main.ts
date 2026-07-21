@@ -1,9 +1,8 @@
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { BrowserWindow, app } from 'electron';
 import { ensureLocalUser } from './bootstrap';
 import { runMigrations } from './migrate';
-import { getMigrationsDir, getSqliteDbPath, getUserDataDir, getWebAppDir } from './paths';
+import { getMigrationsDir, getSqliteDbPath, getWebAppDir } from './paths';
 import { startNext } from './server';
 import { setupPomodoroTray } from './tray';
 
@@ -26,30 +25,8 @@ async function boot(): Promise<void> {
   const dbFile = getSqliteDbPath();
   process.env.SQLITE_DB_PATH = dbFile;
 
-  // Expose the userData dir to the web process so /api/settings can read
-  // and write settings.json. Also hydrate ANTHROPIC_API_KEY from the file
-  // on boot so the first roadmap stream after launch already works.
-  const userDataDir = getUserDataDir();
-  process.env.NOTOMORROW_USER_DATA = userDataDir;
-  try {
-    const settingsPath = path.join(userDataDir, 'settings.json');
-    if (fs.existsSync(settingsPath)) {
-      const cfg = JSON.parse(fs.readFileSync(settingsPath, 'utf8')) as {
-        anthropicApiKey?: string;
-      };
-      if (cfg.anthropicApiKey) {
-        process.env.ANTHROPIC_API_KEY = cfg.anthropicApiKey;
-        console.log('[notomorrow] anthropic key loaded from settings.json');
-      }
-    }
-  } catch (err) {
-    console.warn('[notomorrow] failed to read settings.json:', err);
-  }
-
   // NextAuth requires these even in single-user desktop mode.
   process.env.NEXTAUTH_SECRET ??= 'desktop-local-secret-not-real';
-  process.env.COACH_SERVICE_URL ??= 'http://127.0.0.1:9999';
-  process.env.COACH_SERVICE_TOKEN ??= 'desktop-placeholder';
   process.env.DATABASE_URL ??= `sqlite://${dbFile}`;
 
   console.log(`[notomorrow] sqlite db: ${dbFile}`);

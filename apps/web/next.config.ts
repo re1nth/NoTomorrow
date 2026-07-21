@@ -18,10 +18,8 @@ const nextConfig: NextConfig = {
   // via `extraResources` instead.
   transpilePackages: [
     '@notomorrow/ui',
-    '@notomorrow/domain',
     '@notomorrow/db',
     '@notomorrow/db-sqlite',
-    '@notomorrow/inngest',
   ],
   // Native modules — Next must not bundle these. `bindings` is the loader
   // better-sqlite3 uses to find its compiled .node file; if webpack bundles

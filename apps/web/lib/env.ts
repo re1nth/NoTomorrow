@@ -19,17 +19,6 @@ const schema = z.object({
   // Database
   DATABASE_URL: z.string().min(1),
 
-  // Coach service (apps/coach)
-  COACH_SERVICE_URL: z.string().url(),
-  COACH_SERVICE_TOKEN: z.string().min(1),
-
-  // Inngest (optional in dev)
-  INNGEST_EVENT_KEY: z.string().optional(),
-  INNGEST_SIGNING_KEY: z.string().optional(),
-
-  // GitHub webhook secret (optional in dev)
-  GITHUB_WEBHOOK_SECRET: z.string().optional(),
-
   // OAuth — Google (optional; sign-in form falls back to email-only)
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
@@ -39,8 +28,6 @@ const placeholderDefaults = {
   NEXTAUTH_URL: 'http://localhost:3000',
   NEXTAUTH_SECRET: 'placeholder-secret-not-real',
   DATABASE_URL: 'postgres://placeholder:placeholder@localhost:5432/placeholder',
-  COACH_SERVICE_URL: 'http://localhost:8001',
-  COACH_SERVICE_TOKEN: 'placeholder-token',
 };
 
 function isStub(): boolean {

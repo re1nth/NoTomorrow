@@ -26,7 +26,7 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Runs the web app on `:3000` and Postgres on `:5432`.
+Runs the web app on `:3000` and Postgres on `:5433` (see `docker-compose.override.yml`).
 
 ## Useful scripts
 

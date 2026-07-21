@@ -2,10 +2,8 @@ import { sql } from 'drizzle-orm';
 import { pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 /**
- * `users` — account + identity.
- *
- * Mirrors `User` in `@notomorrow/domain`. Timezone is stored on the row so
- * downstream cron jobs (e.g. infra/inngest daily-coach) can fire per-user.
+ * `users` — account + identity. Timezone is stored on the row for per-user
+ * date bucketing.
  *
  * Note on PK: ideally uuid v7 (sortable). Postgres 16 does not ship a native
  * `uuidv7()`, and we don't want a pgcrypto dependency for this. We default to

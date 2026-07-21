@@ -1,6 +1,3 @@
--- pgvector must exist before any `vector(...)` column is declared below.
--- This statement was prepended by hand; drizzle-kit does not emit extensions.
-CREATE EXTENSION IF NOT EXISTS vector;--> statement-breakpoint
 CREATE TYPE "public"."coach_channel" AS ENUM('inbox', 'push');--> statement-breakpoint
 CREATE TYPE "public"."coach_tone" AS ENUM('hype', 'stern', 'analytical', 'warm');--> statement-breakpoint
 CREATE TYPE "public"."goal_status" AS ENUM('draft', 'active', 'paused', 'won', 'abandoned');--> statement-breakpoint
@@ -107,7 +104,7 @@ CREATE TABLE IF NOT EXISTS "bundles" (
 	"tags" text[] DEFAULT '{}'::text[] NOT NULL,
 	"stars" integer DEFAULT 0 NOT NULL,
 	"forks" integer DEFAULT 0 NOT NULL,
-	"embedding" vector(1536),
+	"embedding" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
