@@ -52,6 +52,17 @@ const nextConfig: NextConfig = {
         '@notomorrow/db': '@notomorrow/db-sqlite',
       };
     }
+    // Webpack's persistent cache doesn't key on our alias switch, so a
+    // desktop-mode build sitting on top of a web-mode `.next/cache` would
+    // silently reuse Postgres-schema chunks (gen_random_uuid() fires against
+    // SQLite → runtime 500). Separate the cache buckets per runtime.
+    if (config.cache && typeof config.cache === 'object') {
+      const suffix = process.env.NOTOMORROW_RUNTIME === 'desktop' ? 'desktop' : 'web';
+      config.cache = {
+        ...config.cache,
+        version: `${(config.cache as { version?: string }).version ?? ''}::${suffix}`,
+      };
+    }
     return config;
   },
 };
