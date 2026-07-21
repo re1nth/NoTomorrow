@@ -8,17 +8,23 @@ dependency surface of its own.
 
 ## Script index
 
-| Command          | File           | What it does                                                                              |
-| ---------------- | -------------- | ----------------------------------------------------------------------------------------- |
-| `pnpm check:env` | `check-env.ts` | Diff `process.env` against `.env.example`. Exits 1 with a list of missing keys.           |
-| `pnpm db:reset`  | `db-reset.ts`  | DROP+CREATE the `public` (and `drizzle`) schemas, then re-apply migrations. Guarded.      |
+| Command          | File                 | What it does                                                                              |
+| ---------------- | -------------------- | ----------------------------------------------------------------------------------------- |
+| `pnpm desktop`   | `install-desktop.sh` | Build the `.app`, install it into `/Applications`, strip quarantine, launch it.           |
+| `pnpm web`       | `dev-web.sh`         | Ensure `.env` + Postgres + migrations, then `next dev` on `:3000`.                        |
+| `pnpm check:env` | `check-env.ts`       | Diff `process.env` against `.env.example`. Exits 1 with a list of missing keys.           |
+| `pnpm db:reset`  | `db-reset.ts`        | DROP+CREATE the `public` (and `drizzle`) schemas, then re-apply migrations. Guarded.      |
 
 ## Conventions
 
-- **No new deps.** Use `node:child_process`, `node:fs`, `node:path`,
-  `node:url`, and ANSI escape codes. If a script needs a third-party module
-  (e.g. `postgres`), it `await import()`s it so a missing workspace install
-  surfaces a friendly error instead of a top-level resolution crash.
+- **TS scripts use `tsx` + Node built-ins only** — no new deps at the repo
+  root. If a script needs a third-party module (e.g. `postgres`), it
+  `await import()`s it so a missing workspace install surfaces a friendly
+  error instead of a top-level resolution crash.
+- **Bash for pure shell orchestration.** `install-desktop.sh` and
+  `dev-web.sh` are macOS-first developer glue (`osascript`, `xattr`,
+  `docker compose`, `open`). Writing them in TS would be Node shelling out
+  the whole time; bash is honest here.
 - **Friendly failure modes.** Every script exits with a clear one-line error
   when prerequisites are missing (missing env var, no `.env.example`, etc.).
 - **Idempotent where possible.** `db:reset` can be re-run safely.
