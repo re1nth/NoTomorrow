@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { counters } from '@notomorrow/db';
+import { counters } from '@notomorrow/db-sqlite';
 import { db } from '@/lib/db';
 import { requireUserOrTest, UnauthorizedError } from '@/lib/auth';
 

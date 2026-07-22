@@ -1,46 +1,39 @@
 /**
- * Process-wide Drizzle client.
+ * Process-wide Drizzle client, backed by SQLite via better-sqlite3.
  *
- * Default runtime is `web` (Postgres). When `NOTOMORROW_RUNTIME=desktop` is
- * set by the Electron main process, we build a SQLite-backed client.
- *
- * We deliberately do NOT statically `import` either driver. Static imports of
- * `better-sqlite3`/`bindings` get pulled into webpack's RSC bundle (via the
- * transpiled `@notomorrow/db-sqlite` workspace package), and `bindings`'
- * stack-frame walker blows up inside webpack with a misleading
- * `Cannot read properties of undefined (reading 'indexOf')`. Loading both
- * drivers via `createRequire` keeps them as runtime Node requires —
+ * We deliberately do NOT statically `import` better-sqlite3. Static imports
+ * get pulled into webpack's RSC bundle (via the transpiled
+ * `@notomorrow/db-sqlite` workspace package), and `bindings`' stack-frame
+ * walker blows up inside webpack with a misleading
+ * `Cannot read properties of undefined (reading 'indexOf')`. Loading the
+ * driver via `__non_webpack_require__` keeps it as a runtime Node require —
  * `serverExternalPackages` does the rest.
  *
  * The proxy keeps construction lazy so `next build`'s collect-page-data pass
- * never connects.
+ * never opens the SQLite file.
  */
-// DrizzleDatabase is a structural type — both drivers' DBs satisfy enough of
-// it that the route handlers (db.query.*, db.select(), db.insert()) work
-// against either. We re-export the Postgres type as the canonical one and
-// runtime-cast the sqlite instance to it.
-import type { DrizzleDatabase } from '@notomorrow/db';
+import type { DrizzleDatabase } from '@notomorrow/db-sqlite';
 // Schemas only — no native deps. Webpack compiles via transpilePackages and
 // the resulting JS object is the SAME instance route handlers see through
-// their aliased `@notomorrow/db` imports, so `db.query.users.findFirst` and
+// their `@notomorrow/db-sqlite` imports, so `db.query.users.findFirst` and
 // `eq(users.id, ...)` agree on the same table metadata.
-import * as sqliteSchema from '@notomorrow/db-sqlite/schema';
+import * as schema from '@notomorrow/db-sqlite/schema';
 
 declare global {
   // eslint-disable-next-line no-var
   var __notomorrowDb: DrizzleDatabase | undefined;
   // Webpack's documented escape hatch — compiles to the real Node `require`
   // at build time, bypassing both bundling and the `webpackEmptyContext`
-  // dynamic-require shim. We use it for native modules (better-sqlite3) and
-  // workspace packages we don't want webpack to follow.
+  // dynamic-require shim. We use it for native modules (better-sqlite3).
   // eslint-disable-next-line @typescript-eslint/naming-convention
   function __non_webpack_require__<T = unknown>(mod: string): T;
 }
 
-function buildDesktop(): DrizzleDatabase {
+function build(): DrizzleDatabase {
+  if (global.__notomorrowDb) return global.__notomorrowDb;
   const filePath = process.env.SQLITE_DB_PATH;
   if (!filePath) {
-    throw new Error('SQLITE_DB_PATH must be set when NOTOMORROW_RUNTIME=desktop');
+    throw new Error('SQLITE_DB_PATH must be set');
   }
   const Database = __non_webpack_require__<
     new (path: string) => { pragma(s: string): unknown }
@@ -52,22 +45,7 @@ function buildDesktop(): DrizzleDatabase {
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('synchronous = NORMAL');
   sqlite.pragma('foreign_keys = ON');
-  return drizzle(sqlite, { schema: sqliteSchema });
-}
-
-function buildWeb(): DrizzleDatabase {
-  // env is read lazily — only validated when we actually go down the web path.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { env } = require('./env') as { env: { DATABASE_URL: string } };
-  const { createDb } = __non_webpack_require__<{
-    createDb: (url: string, opts: { max: number }) => DrizzleDatabase;
-  }>('@notomorrow/db');
-  return createDb(env.DATABASE_URL, { max: 5 });
-}
-
-function build(): DrizzleDatabase {
-  if (global.__notomorrowDb) return global.__notomorrowDb;
-  const created = process.env.NOTOMORROW_RUNTIME === 'desktop' ? buildDesktop() : buildWeb();
+  const created = drizzle(sqlite, { schema });
   if (process.env.NODE_ENV !== 'production') {
     global.__notomorrowDb = created;
   }

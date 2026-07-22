@@ -12,7 +12,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@notomorrow/db": "workspace:*",
     "@notomorrow/db-sqlite": "workspace:*",
     "@notomorrow/ui": "workspace:*",
     "better-sqlite3": "^11.5.0",
@@ -20,7 +19,6 @@
     "framer-motion": "^11.11.17",
     "lottie-react": "^2.4.0",
     "next": "15.0.3",
-    "next-auth": "^4.24.10",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.23.8"

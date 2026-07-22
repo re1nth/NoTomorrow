@@ -12,8 +12,6 @@ import { vi, beforeEach } from 'vitest';
 
 (process.env as Record<string, string>).NODE_ENV = 'test';
 (process.env as Record<string, string>).VITEST = 'true';
-process.env.NEXTAUTH_SECRET = 'test-secret';
-process.env.DATABASE_URL = 'postgres://test:test@localhost:5432/test';
 
 export interface DbState {
   users: Array<Record<string, unknown>>;

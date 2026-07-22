@@ -20,14 +20,8 @@ async function boot(): Promise<void> {
 
   await app.whenReady();
 
-  // Required env for apps/web's lib/db.ts runtime branch.
-  process.env.NOTOMORROW_RUNTIME = 'desktop';
   const dbFile = getSqliteDbPath();
   process.env.SQLITE_DB_PATH = dbFile;
-
-  // NextAuth requires these even in single-user desktop mode.
-  process.env.NEXTAUTH_SECRET ??= 'desktop-local-secret-not-real';
-  process.env.DATABASE_URL ??= `sqlite://${dbFile}`;
 
   console.log(`[notomorrow] sqlite db: ${dbFile}`);
   runMigrations(dbFile, getMigrationsDir());
@@ -35,10 +29,6 @@ async function boot(): Promise<void> {
   console.log(`[notomorrow] local user: ${localUser.handle} (${localUser.id})`);
 
   const url = await startNext(getWebAppDir());
-  // NEXTAUTH_URL must match the actual bound origin or the callback redirect
-  // bounces to ERR_CONNECTION_REFUSED. The port is random, so we set it after
-  // startNext returns; next-auth reads this per-request so this is in time.
-  process.env.NEXTAUTH_URL = url;
   console.log(`[notomorrow] next ready at ${url}`);
 
   const win = new BrowserWindow({

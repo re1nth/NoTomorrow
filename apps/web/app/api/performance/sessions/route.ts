@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { perfSessions } from '@notomorrow/db';
+import { perfSessions } from '@notomorrow/db-sqlite';
 import { db } from '@/lib/db';
 import { requireUserOrTest, UnauthorizedError } from '@/lib/auth';
 

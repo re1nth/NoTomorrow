@@ -1,20 +1,18 @@
-import { redirect } from 'next/navigation';
+import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { LeftRail } from '@/components/LeftRail';
 import { getUserId } from '@/lib/auth';
 
-// Authenticated routes resolve identity from session (web) or sqlite (desktop)
-// at request time — never prerender them statically. In desktop builds this
-// also keeps `next build` from touching the SQLite client (no SQLITE_DB_PATH
-// is set until the launcher boots).
+// Resolve the local user at request time — never prerender. Also keeps
+// `next build` from touching the SQLite client: SQLITE_DB_PATH is set by
+// the Electron launcher, not the build.
 export const dynamic = 'force-dynamic';
 
-/**
- * Authenticated shell. Redirects to /sign-in if no session.
- */
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const uid = await getUserId();
-  if (!uid) redirect('/sign-in');
+  // The launcher's ensureLocalUser guarantees a row on boot; if it's
+  // missing here the SQLite file is broken, not a sign-in issue.
+  if (!uid) notFound();
 
   return (
     <div className="h-screen flex overflow-hidden">

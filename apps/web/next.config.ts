@@ -16,11 +16,7 @@ const nextConfig: NextConfig = {
   // in-process `next({dev:false,dir})` boot in apps/desktop/src/main/server.
   // electron-builder ships the regular `.next/` + source + node_modules tree
   // via `extraResources` instead.
-  transpilePackages: [
-    '@notomorrow/ui',
-    '@notomorrow/db',
-    '@notomorrow/db-sqlite',
-  ],
+  transpilePackages: ['@notomorrow/ui', '@notomorrow/db-sqlite'],
   // Native modules — Next must not bundle these. `bindings` is the loader
   // better-sqlite3 uses to find its compiled .node file; if webpack bundles
   // it, its stack-frame parser blows up with a misleading
@@ -41,28 +37,6 @@ const nextConfig: NextConfig = {
       '.js': ['.ts', '.tsx', '.js'],
       '.mjs': ['.mts', '.mjs'],
     };
-    // Desktop runtime: redirect every schema import to the SQLite mirror so
-    // table references (eq(users.handle, ...), db.query.users.findFirst)
-    // share the same drizzle metadata as the SQLite client. Phase B will
-    // replace this with the proper @notomorrow/db-interface abstraction.
-    if (process.env.NOTOMORROW_RUNTIME === 'desktop') {
-      config.resolve.alias = {
-        ...(config.resolve.alias ?? {}),
-        '@notomorrow/db/schema': '@notomorrow/db-sqlite/schema',
-        '@notomorrow/db': '@notomorrow/db-sqlite',
-      };
-    }
-    // Webpack's persistent cache doesn't key on our alias switch, so a
-    // desktop-mode build sitting on top of a web-mode `.next/cache` would
-    // silently reuse Postgres-schema chunks (gen_random_uuid() fires against
-    // SQLite → runtime 500). Separate the cache buckets per runtime.
-    if (config.cache && typeof config.cache === 'object') {
-      const suffix = process.env.NOTOMORROW_RUNTIME === 'desktop' ? 'desktop' : 'web';
-      config.cache = {
-        ...config.cache,
-        version: `${(config.cache as { version?: string }).version ?? ''}::${suffix}`,
-      };
-    }
     return config;
   },
 };

@@ -10,9 +10,9 @@
     "prebuild": "node build/prebuild.mjs",
     "build": "npm run prebuild && tsc -p tsconfig.json",
     "electron-rebuild": "electron-rebuild -f -w better-sqlite3",
-    "dev": "npm run build && NOTOMORROW_RUNTIME=desktop electron .",
+    "dev": "npm run build && electron .",
     "icon": "python3 build/make-icon.py && iconutil --convert icns build/icon.iconset --output build/icon.icns",
-    "web:prod-build": "cd ../web && NOTOMORROW_RUNTIME=desktop npx next build",
+    "web:prod-build": "cd ../web && npx next build",
     "dist": "npm run build && npm run web:prod-build && npm run electron-rebuild && electron-builder --mac",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
