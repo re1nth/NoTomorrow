@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SectionTitle } from '@/components/SectionTitle';
 import { Button, Card } from '@/lib/ui';
 
 type Mode = 'idle' | 'running' | 'paused' | 'ended';
@@ -182,18 +183,20 @@ export default function PomodoroPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div className="flex items-baseline justify-between">
-        <h1 className="font-display text-3xl uppercase tracking-wider">Pomodoro</h1>
-        <span className="text-sm text-charcoal-soft font-display uppercase tracking-wider">
-          {mode === 'running'
-            ? 'Running'
-            : mode === 'paused'
-              ? 'Paused'
-              : mode === 'ended'
-                ? 'Done'
-                : 'Ready'}
-        </span>
-      </div>
+      <SectionTitle
+        title="Pomodoro"
+        right={
+          <span className="text-sm text-charcoal-soft font-display uppercase tracking-wider">
+            {mode === 'running'
+              ? 'Running'
+              : mode === 'paused'
+                ? 'Paused'
+                : mode === 'ended'
+                  ? 'Done'
+                  : 'Ready'}
+          </span>
+        }
+      />
 
       <Card>
         <div className="flex flex-col items-center gap-6 py-6">

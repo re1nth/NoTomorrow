@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SectionTitle } from '@/components/SectionTitle';
 import { Button, Card } from '@/lib/ui';
 
 interface TreeNode {
@@ -157,12 +158,10 @@ export default function PerformancePage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <header>
-        <h1 className="font-display text-3xl uppercase tracking-wider">Performance</h1>
-        <p className="text-sm text-charcoal-soft mt-1">
-          Score yourself on the tests you care about. One data point per day per test.
-        </p>
-      </header>
+      <SectionTitle
+        title="Performance"
+        subtitle="Score yourself on the tests you care about. One data point per day per test."
+      />
 
       {error ? (
         <p className="text-sm text-glove-deep">{error}</p>

@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { SectionTitle } from '@/components/SectionTitle';
 import { Button, Card } from '@/lib/ui';
 import { beltFor, CATEGORIES, type Category, categoryFor, todayLocal } from './belts';
 
@@ -126,17 +127,15 @@ export default function CountersPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <header className="flex items-baseline justify-between mb-6">
-        <div>
-          <h1 className="font-display text-4xl tracking-wider">Counters</h1>
-          <p className="text-sm text-charcoal-soft mt-1">
-            One thread, one punch a day. Don't break the chain.
-          </p>
-        </div>
-        <Button onClick={() => setAdding((v) => !v)} variant={adding ? 'ghost' : 'primary'}>
-          {adding ? 'Cancel' : '+ New thread'}
-        </Button>
-      </header>
+      <SectionTitle
+        title="Counters"
+        subtitle="One thread, one punch a day. Don't break the chain."
+        right={
+          <Button onClick={() => setAdding((v) => !v)} variant={adding ? 'ghost' : 'primary'}>
+            {adding ? 'Cancel' : '+ New thread'}
+          </Button>
+        }
+      />
 
       <AnimatePresence initial={false}>
         {adding ? (
