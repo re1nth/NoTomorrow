@@ -19,6 +19,20 @@ export const BELTS = [
 
 export type Belt = (typeof BELTS)[number];
 
+export type Category = 'Warmup' | 'Hanging' | 'Barrage';
+
+export const CATEGORIES = [
+  { name: 'Warmup', hex: '#F2A668', ink: '#0B0908' },
+  { name: 'Hanging', hex: '#E66B4A', ink: '#0B0908' },
+  { name: 'Barrage', hex: '#5479C2', ink: '#EAE4D6' },
+] as const satisfies readonly { name: Category; hex: string; ink: string }[];
+
+export function categoryFor(belt: Belt): Category {
+  if (belt.threshold < 30) return 'Warmup';
+  if (belt.threshold < 180) return 'Hanging';
+  return 'Barrage';
+}
+
 export function beltFor(
   count: number,
 ): { current: Belt; next: Belt | null; progress: number } {

@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button, Card } from '@/lib/ui';
-import { beltFor, todayLocal } from './belts';
+import { beltFor, CATEGORIES, type Category, categoryFor, todayLocal } from './belts';
 
 interface CounterRow {
   id: string;
@@ -21,6 +21,7 @@ export default function CountersPage() {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: '', initialCount: 0 });
   const [pulsing, setPulsing] = useState<string | null>(null);
+  const [category, setCategory] = useState<Category>('Warmup');
   // `today` in state so a mount that survives midnight (or a laptop resume
   // from sleep) still re-enables "+1 today" without a page reload.
   const [today, setToday] = useState(todayLocal);
@@ -203,20 +204,83 @@ export default function CountersPage() {
           </p>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-5 max-w-[896px] mx-auto">
-          <AnimatePresence initial={false}>
-            {items.map((c) => (
-              <CounterCard
-                key={c.id}
-                counter={c}
-                pulsing={pulsing === c.id}
-                today={today}
-                onCheckIn={() => checkIn(c.id)}
-              />
-            ))}
-          </AnimatePresence>
-        </div>
+        <>
+          <CategoryTabs items={items} active={category} onSelect={setCategory} />
+          <div className="grid grid-cols-1 gap-5 max-w-[896px] mx-auto">
+            <AnimatePresence initial={false}>
+              {items
+                .filter((c) => categoryFor(beltFor(c.count).current) === category)
+                .sort((a, b) => b.count - a.count)
+                .map((c) => (
+                  <CounterCard
+                    key={c.id}
+                    counter={c}
+                    pulsing={pulsing === c.id}
+                    today={today}
+                    onCheckIn={() => checkIn(c.id)}
+                  />
+                ))}
+            </AnimatePresence>
+            {items.every((c) => categoryFor(beltFor(c.count).current) !== category) ? (
+              <Card tone="default" className="text-center py-10">
+                <p className="font-display text-xl mb-1">Nothing at {category} yet.</p>
+                <p className="text-sm text-charcoal-soft">
+                  Threads land here as they progress through belts.
+                </p>
+              </Card>
+            ) : null}
+          </div>
+        </>
       )}
+    </div>
+  );
+}
+
+function CategoryTabs({
+  items,
+  active,
+  onSelect,
+}: {
+  items: CounterRow[];
+  active: Category;
+  onSelect: (c: Category) => void;
+}) {
+  const counts = useMemo(() => {
+    const acc: Record<Category, number> = { Warmup: 0, Hanging: 0, Barrage: 0 };
+    for (const it of items) acc[categoryFor(beltFor(it.count).current)] += 1;
+    return acc;
+  }, [items]);
+
+  return (
+    <div className="mb-6 flex justify-center">
+      <div className="inline-flex items-center rounded-full bg-canvas-soft border border-charcoal/15 p-1 shadow-sm">
+        {CATEGORIES.map((cat) => {
+          const isActive = cat.name === active;
+          return (
+            <button
+              key={cat.name}
+              type="button"
+              onClick={() => onSelect(cat.name)}
+              className="relative px-5 py-2 rounded-full text-xs font-display tracking-wider uppercase transition-colors"
+              style={{ color: isActive ? cat.ink : undefined }}
+            >
+              {isActive ? (
+                <motion.span
+                  layoutId="category-pill"
+                  aria-hidden
+                  className="absolute inset-0 rounded-full"
+                  style={{ backgroundColor: cat.hex }}
+                  transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                />
+              ) : null}
+              <span className="relative z-10 inline-flex items-center gap-2">
+                {cat.name}
+                <span className="tabular-nums opacity-70">{counts[cat.name]}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
