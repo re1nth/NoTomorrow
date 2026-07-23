@@ -21,11 +21,19 @@ export type Belt = (typeof BELTS)[number];
 
 export type Category = 'Warmup' | 'Hanging' | 'Barrage';
 
+// Gradient ramp reads as building heat: pale warmth → working orange →
+// deep burn. Not tied to belt hues — the ramp is intentionally
+// monotonic in intensity so the tabs telegraph how hard the group is.
 export const CATEGORIES = [
-  { name: 'Warmup', hex: '#F2A668', ink: '#0B0908' },
-  { name: 'Hanging', hex: '#E66B4A', ink: '#0B0908' },
-  { name: 'Barrage', hex: '#5479C2', ink: '#EAE4D6' },
-] as const satisfies readonly { name: Category; hex: string; ink: string }[];
+  { name: 'Warmup', from: '#F5F1E6', to: '#F2C86A', ink: '#0B0908' },
+  { name: 'Hanging', from: '#F2A668', to: '#E66B4A', ink: '#0B0908' },
+  { name: 'Barrage', from: '#C93A3A', to: '#7A1A5C', ink: '#EAE4D6' },
+] as const satisfies readonly {
+  name: Category;
+  from: string;
+  to: string;
+  ink: string;
+}[];
 
 export function categoryFor(belt: Belt): Category {
   if (belt.threshold < 30) return 'Warmup';

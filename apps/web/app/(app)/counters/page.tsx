@@ -269,7 +269,9 @@ function CategoryTabs({
                   layoutId="category-pill"
                   aria-hidden
                   className="absolute inset-0 rounded-full"
-                  style={{ backgroundColor: cat.hex }}
+                  style={{
+                    backgroundImage: `linear-gradient(100deg, ${cat.from}, ${cat.to})`,
+                  }}
                   transition={{ type: 'spring', stiffness: 380, damping: 30 }}
                 />
               ) : null}
