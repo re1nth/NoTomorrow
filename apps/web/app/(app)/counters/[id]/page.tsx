@@ -236,15 +236,15 @@ function EditableName({
 
 /**
  * Delete a counter — intentionally isolated at the bottom of the detail
- * page and gated behind typing the thread's exact name so a stray click
- * can't wipe a streak. Case-sensitive; the match must be one-for-one.
+ * page and gated behind typing the thread's name so a stray click can't
+ * wipe a streak. Match is case-insensitive.
  */
 function DangerZone({ counter }: { counter: CounterRow }) {
   const router = useRouter();
   const [typed, setTyped] = useState('');
   const [pending, setPending] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const armed = typed === counter.name;
+  const armed = typed.trim().toLowerCase() === counter.name.trim().toLowerCase();
 
   async function del() {
     setErr(null);
