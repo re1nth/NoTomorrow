@@ -9,6 +9,7 @@ dist-electron/
 apps/desktop/build/icon-1024.png
 apps/desktop/build/icon.iconset/
 apps/desktop/build/repo-config.json
+apps/desktop/build/web-staging/
 
 .venv/
 __pycache__/

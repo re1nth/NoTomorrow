@@ -62,6 +62,15 @@ export function getRepoRoot(): string {
 }
 
 export function getWebAppDir(): string {
+  // In a packaged .app the bundled tree (staged by build/stage-web.mjs)
+  // wins — it's the only path guaranteed to exist on a downloader's
+  // machine. Falls back to the local repo for `pnpm dev`.
+  if (process.resourcesPath) {
+    const bundled = path.join(process.resourcesPath, 'web');
+    if (fs.existsSync(path.join(bundled, 'package.json'))) {
+      return bundled;
+    }
+  }
   return path.join(getRepoRoot(), 'apps', 'web');
 }
 

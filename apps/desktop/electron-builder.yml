@@ -1,20 +1,15 @@
 # electron-builder config for NoTomorrow desktop.
 #
-# Distribution model: this is a *single-user launcher* for the local
-# NoTomorrow source tree. The .app bundles only the Electron main process
-# and the native dependencies (better-sqlite3, drizzle); the Next.js app is
-# loaded in-process from the user's local repo at runtime (path resolved by
-# `apps/desktop/src/main/paths.ts`, with the repo path baked in at build
-# time via NOTOMORROW_REPO_DIR).
+# Distribution model: self-contained. build/stage-web.mjs runs
+# `pnpm deploy` into build/web-staging/, ships that as an extraResource,
+# and paths.ts prefers it at runtime — so the packaged .app runs on any
+# arm64 Mac without needing the source repo on disk.
 #
-# This keeps the .dmg under ~150 MB instead of ~500 MB and avoids the
-# pnpm-workspace symlink dereferencing problem inside electron-builder. The
-# tradeoff is the .app is not portable to another machine — which is fine
-# because this is a personal install, not a shared distribution.
-#
-# Unsigned. Users open with:
-#   xattr -dr com.apple.quarantine /Applications/NoTomorrow.app
-# on first launch. Signing/notarization is deferred to a v2 packaging pass.
+# Ad-hoc code signed (identity: '-') so macOS Gatekeeper reports a
+# friendly "unknown developer" prompt instead of "app is damaged" on
+# first launch. Without a paid Apple Developer ID we can't notarize, so
+# users still need to right-click → Open the first time (or run
+# `xattr -dr com.apple.quarantine /Applications/NoTomorrow.app`).
 
 appId: com.notomorrow.app
 productName: NoTomorrow
@@ -42,7 +37,12 @@ asarUnpack:
 extraResources:
   - from: ../../packages/db-sqlite/migrations
     to: db-sqlite-migrations
-  # Repo path baked at build time. paths.ts uses this to locate apps/web.
+  # Self-contained web tree staged by build/stage-web.mjs — production
+  # .next/, public/, and hoisted node_modules. paths.ts loads from here.
+  - from: build/web-staging
+    to: web
+  # Repo path baked at build time. Still emitted so `pnpm dev` from a
+  # moved checkout works; runtime prefers the bundled `web` above.
   - from: build/repo-config.json
     to: repo-config.json
 
@@ -53,7 +53,7 @@ mac:
         - arm64
   category: public.app-category.productivity
   icon: build/icon.icns
-  identity: null              # unsigned
+  identity: '-'               # ad-hoc signed (no paid Developer ID)
   hardenedRuntime: false
   gatekeeperAssess: false
   type: distribution
