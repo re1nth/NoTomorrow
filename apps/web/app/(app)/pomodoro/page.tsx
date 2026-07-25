@@ -39,8 +39,7 @@ function playBuzz(): void {
   if (typeof window === 'undefined') return;
   const Ctx =
     (window as unknown as { AudioContext?: typeof AudioContext }).AudioContext ??
-    (window as unknown as { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
+    (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!Ctx) return;
   try {
     const ctx = new Ctx();
@@ -122,16 +121,19 @@ export default function PomodoroPage() {
     }
   }, [mode]);
 
-  const setPreset = useCallback((minutes: number) => {
-    if (mode === 'running') return;
-    const ms = minutes * 60_000;
-    setTotalMs(ms);
-    setRemainingMs(ms);
-    setMode('idle');
-    setCustom('');
-    endsAtRef.current = null;
-    desktopBridge()?.pomodoroClear?.();
-  }, [mode]);
+  const setPreset = useCallback(
+    (minutes: number) => {
+      if (mode === 'running') return;
+      const ms = minutes * 60_000;
+      setTotalMs(ms);
+      setRemainingMs(ms);
+      setMode('idle');
+      setCustom('');
+      endsAtRef.current = null;
+      desktopBridge()?.pomodoroClear?.();
+    },
+    [mode],
+  );
 
   const applyCustom = useCallback(() => {
     const n = Number(custom);
@@ -182,9 +184,10 @@ export default function PomodoroPage() {
     mode === 'idle' && custom === '' ? Math.round(totalMs / 60_000) : null;
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-5xl">
       <SectionTitle
         title="Pomodoro"
+        subtitle="One bell, one round. Don't look away till it rings."
         right={
           <span className="text-sm text-charcoal-soft font-display uppercase tracking-wider">
             {mode === 'running'
@@ -198,103 +201,104 @@ export default function PomodoroPage() {
         }
       />
 
-      <Card>
-        <div className="flex flex-col items-center gap-6 py-6">
-          <div
-            className={`font-display text-7xl tabular-nums transition-colors ${
-              ended ? 'text-glove animate-pulse' : 'text-charcoal'
-            }`}
-            aria-live="polite"
-          >
-            {formatClock(remainingMs)}
-          </div>
-          <div className="w-full h-2 bg-charcoal/10 rounded-full overflow-hidden">
+      <div className="mx-auto max-w-2xl space-y-6">
+        <Card>
+          <div className="flex flex-col items-center gap-6 py-6">
             <div
-              className={`h-full transition-[width] duration-200 ${
-                ended ? 'bg-glove' : 'bg-charcoal'
+              className={`font-display text-7xl tabular-nums transition-colors ${
+                ended ? 'text-glove animate-pulse' : 'text-charcoal'
               }`}
-              style={{ width: `${percentDone}%` }}
-            />
-          </div>
+              aria-live="polite"
+            >
+              {formatClock(remainingMs)}
+            </div>
+            <div className="w-full h-2 bg-charcoal/10 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-[width] duration-200 ${
+                  ended ? 'bg-glove' : 'bg-charcoal'
+                }`}
+                style={{ width: `${percentDone}%` }}
+              />
+            </div>
 
-          <div className="flex gap-3">
-            {ended ? (
-              <Button variant="primary" onClick={dismissEnded}>
-                Dismiss
-              </Button>
-            ) : running ? (
-              <>
-                <Button variant="ghost" onClick={pause}>
-                  Pause
+            <div className="flex gap-3">
+              {ended ? (
+                <Button variant="primary" onClick={dismissEnded}>
+                  Dismiss
                 </Button>
-                <Button variant="ghost" onClick={stop}>
-                  Stop
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button variant="primary" onClick={start} disabled={remainingMs <= 0}>
-                  {mode === 'paused' ? 'Resume' : 'Start'}
-                </Button>
-                {mode === 'paused' && (
+              ) : running ? (
+                <>
+                  <Button variant="ghost" onClick={pause}>
+                    Pause
+                  </Button>
                   <Button variant="ghost" onClick={stop}>
                     Stop
                   </Button>
-                )}
-              </>
-            )}
+                </>
+              ) : (
+                <>
+                  <Button variant="primary" onClick={start} disabled={remainingMs <= 0}>
+                    {mode === 'paused' ? 'Resume' : 'Start'}
+                  </Button>
+                  {mode === 'paused' && (
+                    <Button variant="ghost" onClick={stop}>
+                      Stop
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
 
-      <Card>
-        <div className="space-y-4">
-          <div className="text-xs font-display uppercase tracking-wider text-charcoal-soft">
-            Duration
+        <Card>
+          <div className="space-y-4">
+            <div className="text-xs font-display uppercase tracking-wider text-charcoal-soft">
+              Duration
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {PRESETS.map((p) => {
+                const active = activePresetMinutes === p.minutes;
+                return (
+                  <Button
+                    key={p.minutes}
+                    variant={active ? 'primary' : 'ghost'}
+                    size="sm"
+                    onClick={() => setPreset(p.minutes)}
+                    disabled={mode === 'running'}
+                  >
+                    {p.label}
+                  </Button>
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={180}
+                placeholder="Custom minutes"
+                value={custom}
+                onChange={(e) => setCustom(e.target.value)}
+                disabled={mode === 'running'}
+                className="w-40 px-3 py-2 rounded border border-charcoal/20 bg-canvas text-sm font-display disabled:opacity-50"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={applyCustom}
+                disabled={mode === 'running' || custom === ''}
+              >
+                Set
+              </Button>
+            </div>
+            <p className="text-xs text-charcoal-soft">
+              1–180 minutes. Presets and custom values are locked while a timer is running.
+            </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {PRESETS.map((p) => {
-              const active = activePresetMinutes === p.minutes;
-              return (
-                <Button
-                  key={p.minutes}
-                  variant={active ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setPreset(p.minutes)}
-                  disabled={mode === 'running'}
-                >
-                  {p.label}
-                </Button>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={180}
-              placeholder="Custom minutes"
-              value={custom}
-              onChange={(e) => setCustom(e.target.value)}
-              disabled={mode === 'running'}
-              className="w-40 px-3 py-2 rounded border border-charcoal/20 bg-canvas text-sm font-display disabled:opacity-50"
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={applyCustom}
-              disabled={mode === 'running' || custom === ''}
-            >
-              Set
-            </Button>
-          </div>
-          <p className="text-xs text-charcoal-soft">
-            1–180 minutes. Presets and custom values are locked while a timer is
-            running.
-          </p>
-        </div>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

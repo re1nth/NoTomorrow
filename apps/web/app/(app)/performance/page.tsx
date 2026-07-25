@@ -157,61 +157,61 @@ export default function PerformancePage() {
     : 0;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6">
+    <div className="mx-auto max-w-5xl">
       <SectionTitle
         title="Performance"
         subtitle="Score yourself on the tests you care about. One data point per day per test."
       />
 
-      {error ? (
-        <p className="text-sm text-glove-deep">{error}</p>
-      ) : null}
+      <div className="mx-auto max-w-3xl space-y-6">
+        {error ? <p className="text-sm text-glove-deep">{error}</p> : null}
 
-      {sessionMode ? (
-        <SessionCard
-          topic={sessionMode.topic}
-          tree={sessionMode.tree}
-          liveStats={liveStats}
-          liveScore={liveScore}
-          onUpdate={updateTree}
-          onEnd={endSession}
-          ending={ending}
-        />
-      ) : (
-        <Card>
-          <div className="space-y-4">
-            <div>
-              <h2 className="font-display text-xl uppercase tracking-wider">{TEST.name}</h2>
-              <p className="text-sm text-charcoal-soft mt-1">{TEST.blurb}</p>
-            </div>
-
-            {lastResult ? (
-              <div className="rounded-glove border border-glove/40 bg-glove/5 px-4 py-3 text-sm">
-                <span className="font-display uppercase tracking-wider text-glove-deep">
-                  Just saved:
-                </span>{' '}
-                score <b>{lastResult.score}</b> · {lastResult.totalNodes} nodes ·
-                depth {lastResult.maxDepth} · branching {lastResult.maxBranching}
+        {sessionMode ? (
+          <SessionCard
+            topic={sessionMode.topic}
+            tree={sessionMode.tree}
+            liveStats={liveStats}
+            liveScore={liveScore}
+            onUpdate={updateTree}
+            onEnd={endSession}
+            ending={ending}
+          />
+        ) : (
+          <Card>
+            <div className="space-y-4">
+              <div>
+                <h2 className="font-display text-xl uppercase tracking-wider">{TEST.name}</h2>
+                <p className="text-sm text-charcoal-soft mt-1">{TEST.blurb}</p>
               </div>
-            ) : null}
 
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                value={topicDraft}
-                onChange={(e) => setTopicDraft(e.target.value)}
-                placeholder="Topic (e.g. 'How does attention work in transformers?')"
-                maxLength={300}
-                className="flex-1 px-3 py-2 rounded border border-charcoal/20 bg-canvas text-sm"
-              />
-              <Button variant="primary" onClick={startSession} disabled={!topicDraft.trim()}>
-                Start Session
-              </Button>
+              {lastResult ? (
+                <div className="rounded-glove border border-glove/40 bg-glove/5 px-4 py-3 text-sm">
+                  <span className="font-display uppercase tracking-wider text-glove-deep">
+                    Just saved:
+                  </span>{' '}
+                  score <b>{lastResult.score}</b> · {lastResult.totalNodes} nodes · depth{' '}
+                  {lastResult.maxDepth} · branching {lastResult.maxBranching}
+                </div>
+              ) : null}
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  value={topicDraft}
+                  onChange={(e) => setTopicDraft(e.target.value)}
+                  placeholder="Topic (e.g. 'How does attention work in transformers?')"
+                  maxLength={300}
+                  className="flex-1 px-3 py-2 rounded border border-charcoal/20 bg-canvas text-sm"
+                />
+                <Button variant="primary" onClick={startSession} disabled={!topicDraft.trim()}>
+                  Start Session
+                </Button>
+              </div>
+
+              <ScoreHeatmap points={history} loading={loading} />
             </div>
-
-            <ScoreHeatmap points={history} loading={loading} />
-          </div>
-        </Card>
-      )}
+          </Card>
+        )}
+      </div>
     </div>
   );
 }
@@ -237,7 +237,9 @@ function SessionCard({
     onUpdate((t) => mapTree(t, id, (n) => ({ ...n, question })));
   }
   function addChild(parentId: string) {
-    onUpdate((t) => mapTree(t, parentId, (n) => ({ ...n, children: [...n.children, makeNode('')] })));
+    onUpdate((t) =>
+      mapTree(t, parentId, (n) => ({ ...n, children: [...n.children, makeNode('')] })),
+    );
   }
   function addSibling(id: string) {
     onUpdate((t) => insertSibling(t, id));
@@ -266,9 +268,15 @@ function SessionCard({
         </div>
 
         <div className="flex gap-4 text-xs text-charcoal-soft border-y border-charcoal/10 py-2">
-          <span>nodes <b className="text-charcoal">{liveStats?.totalNodes ?? 0}</b></span>
-          <span>depth <b className="text-charcoal">{liveStats?.maxDepth ?? 0}</b></span>
-          <span>max branching <b className="text-charcoal">{liveStats?.maxBranching ?? 0}</b></span>
+          <span>
+            nodes <b className="text-charcoal">{liveStats?.totalNodes ?? 0}</b>
+          </span>
+          <span>
+            depth <b className="text-charcoal">{liveStats?.maxDepth ?? 0}</b>
+          </span>
+          <span>
+            max branching <b className="text-charcoal">{liveStats?.maxBranching ?? 0}</b>
+          </span>
         </div>
 
         <div className="space-y-2">
@@ -315,10 +323,7 @@ function NodeView({
 }) {
   return (
     <div className="space-y-2">
-      <div
-        className="flex gap-2 items-start"
-        style={{ paddingLeft: depth * 20 }}
-      >
+      <div className="flex gap-2 items-start" style={{ paddingLeft: depth * 20 }}>
         <div className="pt-2 text-[10px] uppercase tracking-wider text-charcoal-soft w-6 text-right">
           L{depth + 1}
         </div>
@@ -464,11 +469,7 @@ function ScoreHeatmap({ points, loading }: { points: HistoryPoint[]; loading: bo
                 return (
                   <div
                     key={cell.day}
-                    title={
-                      cell.inFuture
-                        ? cell.day
-                        : `${cell.day} — score ${cell.score}`
-                    }
+                    title={cell.inFuture ? cell.day : `${cell.day} — score ${cell.score}`}
                     onMouseEnter={() => setHover(cell)}
                     style={{
                       width: CELL,
@@ -492,16 +493,8 @@ function ScoreHeatmap({ points, loading }: { points: HistoryPoint[]; loading: bo
 }
 
 // --- tree helpers ---
-function mapTree(
-  tree: TreeNode[],
-  id: string,
-  fn: (n: TreeNode) => TreeNode,
-): TreeNode[] {
-  return tree.map((n) =>
-    n.id === id
-      ? fn(n)
-      : { ...n, children: mapTree(n.children, id, fn) },
-  );
+function mapTree(tree: TreeNode[], id: string, fn: (n: TreeNode) => TreeNode): TreeNode[] {
+  return tree.map((n) => (n.id === id ? fn(n) : { ...n, children: mapTree(n.children, id, fn) }));
 }
 
 function insertSibling(tree: TreeNode[], id: string): TreeNode[] {
