@@ -1,20 +1,32 @@
 /**
- * Cloud auth strategy — the hosted web runtime.
- *
- * Placeholder until Phase 2 wires Auth.js (Google OAuth). Selecting this
- * strategy today throws a clear error rather than silently reading from
- * the local users table.
+ * Cloud auth strategy — reads the Auth.js session cookie via the
+ * NextAuth instance in `nextauth.ts`. Dynamic import keeps the
+ * NextAuth() construction out of local (desktop) mode entirely.
  */
-import { UnauthorizedError, type AuthStrategy } from './auth-strategy';
+import { eq } from 'drizzle-orm';
+import { users } from '@notomorrow/db-sqlite';
+import { db } from './db';
+import { UnauthorizedError, type AuthStrategy, type AuthUser } from './auth-strategy';
 
-const NOT_WIRED =
-  'cloud auth strategy is not wired yet — Phase 2 lands Auth.js';
+async function currentSessionUserId(): Promise<string | null> {
+  const { auth } = await import('./nextauth');
+  const session = await auth();
+  return session?.user?.id ?? null;
+}
+
+async function getUserId(): Promise<string | null> {
+  return currentSessionUserId();
+}
+
+async function requireUser(): Promise<AuthUser> {
+  const id = await currentSessionUserId();
+  if (!id) throw new UnauthorizedError('not signed in');
+  const row = await db.query.users.findFirst({ where: eq(users.id, id) });
+  if (!row) throw new UnauthorizedError('user row missing');
+  return { id: row.id, timezone: row.timezone };
+}
 
 export const cloudStrategy: AuthStrategy = {
-  async getUserId(): Promise<string | null> {
-    throw new UnauthorizedError(NOT_WIRED);
-  },
-  async requireUser() {
-    throw new UnauthorizedError(NOT_WIRED);
-  },
+  getUserId,
+  requireUser,
 };

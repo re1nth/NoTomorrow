@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@auth/drizzle-adapter": "^1.11.3",
     "@notomorrow/db-sqlite": "workspace:*",
     "@notomorrow/ui": "workspace:*",
     "better-sqlite3": "^11.5.0",
@@ -19,6 +20,7 @@
     "framer-motion": "^11.11.17",
     "lottie-react": "^2.4.0",
     "next": "15.0.3",
+    "next-auth": "5.0.0-beta.32",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.23.8"

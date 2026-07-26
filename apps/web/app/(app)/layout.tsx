@@ -1,18 +1,24 @@
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { LeftRail } from '@/components/LeftRail';
 import { getUserId } from '@/lib/auth';
 
-// Resolve the local user at request time — never prerender. Also keeps
+// Resolve the user at request time — never prerender. Also keeps
 // `next build` from touching the SQLite client: SQLITE_DB_PATH is set by
-// the Electron launcher, not the build.
+// the launcher (or the Fly container), not the build.
 export const dynamic = 'force-dynamic';
+
+const isCloud = process.env.NOTOMORROW_AUTH === 'cloud';
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const uid = await getUserId();
-  // The launcher's ensureLocalUser guarantees a row on boot; if it's
-  // missing here the SQLite file is broken, not a sign-in issue.
-  if (!uid) notFound();
+  if (!uid) {
+    // Cloud: the visitor is signed out — send them to sign in.
+    // Local (desktop): the launcher's ensureLocalUser guarantees a row
+    // on boot, so a missing user means the SQLite file is broken.
+    if (isCloud) redirect('/login');
+    notFound();
+  }
 
   return (
     <div className="h-screen flex overflow-hidden">
