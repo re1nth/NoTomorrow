@@ -22,6 +22,10 @@ async function boot(): Promise<void> {
 
   const dbFile = getSqliteDbPath();
   process.env.SQLITE_DB_PATH = dbFile;
+  // Pin the auth strategy so the web layer never mistakenly boots the
+  // cloud (Auth.js) codepath when a shell env leaks in. Desktop is
+  // always single-user, single-tenant.
+  process.env.NOTOMORROW_AUTH = 'local';
 
   console.log(`[notomorrow] sqlite db: ${dbFile}`);
   runMigrations(dbFile, getMigrationsDir());
