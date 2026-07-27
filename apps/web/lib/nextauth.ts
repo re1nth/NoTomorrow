@@ -5,15 +5,11 @@
  * (which reads AUTH_* env vars) never runs on the desktop.
  */
 import { DrizzleAdapter } from '@auth/drizzle-adapter';
+import { accounts, sessions, users, verificationTokens } from '@notomorrow/db-sqlite';
 import { eq } from 'drizzle-orm';
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
-import {
-  accounts,
-  sessions,
-  users,
-  verificationTokens,
-} from '@notomorrow/db-sqlite';
+import { cookies } from 'next/headers';
 import { db } from './db';
 
 function slugFromEmail(email: string): string {
@@ -39,6 +35,23 @@ async function chooseUniqueHandle(base: string, userId: string): Promise<string>
   return '';
 }
 
+function isValidTimeZone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function readBrowserTimeZone(): Promise<string | null> {
+  const store = await cookies();
+  const raw = store.get('notomorrow_tz')?.value;
+  if (!raw) return null;
+  const decoded = decodeURIComponent(raw);
+  return isValidTimeZone(decoded) ? decoded : null;
+}
+
 // Cast because our `users` table has extra columns (handle, timezone,
 // joinedAt, avatar) that the adapter's shape doesn't know about. The
 // adapter only reads the columns it expects (id, name, email,
@@ -61,8 +74,12 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
       if (!user.id || !user.email) return;
       const base = slugFromEmail(user.email);
       const nice = await chooseUniqueHandle(base, user.id);
-      if (!nice) return;
-      await db.update(users).set({ handle: nice }).where(eq(users.id, user.id));
+      const tz = await readBrowserTimeZone();
+      const patch: { handle?: string; timezone?: string } = {};
+      if (nice) patch.handle = nice;
+      if (tz) patch.timezone = tz;
+      if (Object.keys(patch).length === 0) return;
+      await db.update(users).set(patch).where(eq(users.id, user.id));
     },
   },
 });
