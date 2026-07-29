@@ -62,4 +62,10 @@ export const db: DrizzleDatabase = new Proxy({} as DrizzleDatabase, {
   get(_t, key: string | symbol) {
     return (get() as unknown as Record<string | symbol, unknown>)[key];
   },
+  // Drizzle's `is()` (used by @auth/drizzle-adapter to detect the SQLite
+  // dialect) walks the prototype chain. Forward it to the built instance
+  // so cloud mode's DrizzleAdapter(db, ...) recognises us.
+  getPrototypeOf() {
+    return Object.getPrototypeOf(get());
+  },
 }) as DrizzleDatabase;
