@@ -34,31 +34,37 @@ For iterating on the hosted flow without deploying:
    Console](https://console.cloud.google.com/apis/credentials).
    Authorized redirect URI:
    `http://localhost:3000/api/auth/callback/google`.
-2. Create `apps/web/.env.local` (gitignored):
+2. Copy `.env.example` to `.env.local` (gitignored) and fill in the
+   blanks:
 
    ```bash
-   NOTOMORROW_AUTH=cloud
-   SQLITE_DB_PATH=./.data/notomorrow.db
-   AUTH_SECRET=$(openssl rand -hex 32)     # paste the output
-   AUTH_URL=http://localhost:3000
-   AUTH_GOOGLE_ID=<client id>
-   AUTH_GOOGLE_SECRET=<client secret>
+   cp apps/web/.env.example apps/web/.env.local
+   # then edit AUTH_SECRET (openssl rand -hex 32), AUTH_GOOGLE_ID,
+   # AUTH_GOOGLE_SECRET, and SQLITE_DB_PATH
    ```
 
 3. Apply migrations against the local file once:
 
    ```bash
    mkdir -p apps/web/.data
-   pnpm --filter @notomorrow/db-sqlite exec \
-     tsx -e "import{migrate}from'./src/migrate';migrate(process.env.SQLITE_DB_PATH!, './migrations')"
+   node -e "
+     const Database = require('better-sqlite3');
+     const { drizzle } = require('drizzle-orm/better-sqlite3');
+     const { migrate } = require('drizzle-orm/better-sqlite3/migrator');
+     migrate(drizzle(new Database(process.env.SQLITE_DB_PATH)),
+       { migrationsFolder: '../../packages/db-sqlite/migrations' });
+   " 
    ```
+
+   (run from `apps/web/`, with `SQLITE_DB_PATH` exported to the same
+   path you set in `.env.local`).
 
 4. `pnpm --filter web dev` and open <http://localhost:3000>. Signed-out
    requests land on `/login`; the Google button starts the OAuth flow.
 
-`AUTH_SECRET` and `AUTH_URL` follow Auth.js v5 conventions. If the
-Google callback loops back to `/login`, double-check that
-`AUTH_URL`'s host matches the redirect URI you registered.
+If the Google callback loops back to `/login`, double-check that the
+authorised redirect URI on the Google client matches
+`http://localhost:3000/api/auth/callback/google` exactly.
 
 ## Environment variables
 
@@ -67,7 +73,7 @@ Google callback loops back to `/login`, double-check that
 | `NOTOMORROW_AUTH` | `local` | `cloud` | Picks the auth strategy in `lib/auth.ts`. |
 | `SQLITE_DB_PATH` | ✓ | ✓ | Absolute path to the SQLite file. Desktop sets it to `~/Library/Application Support/NoTomorrow/notomorrow.db`; cloud sets it to the volume mount (`/data/notomorrow.db`). |
 | `AUTH_SECRET` |   | ✓ | Auth.js session cookie signing key. `openssl rand -hex 32`. |
-| `AUTH_URL` |   | ✓ | Public origin. Auth.js uses it to build callback URLs. |
+| `AUTH_TRUST_HOST` |   | ✓ | Set to `true` behind a proxy/load balancer (Fly, Vercel, etc.) so Auth.js trusts the forwarded Host header. |
 | `AUTH_GOOGLE_ID` |   | ✓ | Google OAuth client id. |
 | `AUTH_GOOGLE_SECRET` |   | ✓ | Google OAuth client secret. |
 

@@ -17,6 +17,8 @@ __pycache__/
 .env
 .env.local
 .env.*.local
+# Local SQLite scratch dir for cloud-mode web dev
+apps/web/.data/
 coverage/
 *.log
 .DS_Store
