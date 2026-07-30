@@ -76,6 +76,14 @@ export default function CounterDetailPage() {
       counter={counter}
       days={days}
       onRenamed={(name) => setCounter((c) => (c ? { ...c, name } : c))}
+      onBackfilled={(day, updated) => {
+        setCounter(updated);
+        setDays((prev) => {
+          const next = new Set(prev);
+          next.add(day);
+          return next;
+        });
+      }}
     />
   );
 }
@@ -86,10 +94,12 @@ function DetailBody({
   counter,
   days,
   onRenamed,
+  onBackfilled,
 }: {
   counter: CounterRow;
   days: Set<string>;
   onRenamed: (name: string) => void;
+  onBackfilled: (day: string, updated: CounterRow) => void;
 }) {
   const { current } = beltFor(counter.count);
   const today = todayLocal();
@@ -139,6 +149,13 @@ function DetailBody({
         />
       </header>
 
+      <Backfill
+        counter={counter}
+        days={days}
+        today={today}
+        onBackfilled={onBackfilled}
+      />
+
       <div className="space-y-10">
         {strips.map((s) => (
           <StripBlock key={s.key} strip={s} fillHex={current.hex} today={today} />
@@ -147,6 +164,129 @@ function DetailBody({
 
       <DangerZone counter={counter} />
     </div>
+  );
+}
+
+/**
+ * Backfill a missed day. Only exposed on the detail page — the main
+ * counters card intentionally offers today-only check-in so the daily
+ * rhythm stays honest. Guarded against future dates client-side; the
+ * route revalidates. Duplicate days come back as 409.
+ */
+function Backfill({
+  counter,
+  days,
+  today,
+  onBackfilled,
+}: {
+  counter: CounterRow;
+  days: Set<string>;
+  today: string;
+  onBackfilled: (day: string, updated: CounterRow) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState('');
+  const [pending, setPending] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+
+  function reset() {
+    setDate('');
+    setErr(null);
+    setPending(false);
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null);
+    if (!date) {
+      setErr('Pick a date.');
+      return;
+    }
+    if (date > today) {
+      setErr("Can't backfill a future day.");
+      return;
+    }
+    if (days.has(date)) {
+      setErr('That day is already checked in.');
+      return;
+    }
+    setPending(true);
+    try {
+      const res = await fetch(`/api/counters/${counter.id}/checkin`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ day: date }),
+      });
+      const body = (await res.json().catch(() => null)) as
+        | (CounterRow & { error?: undefined })
+        | { error: string }
+        | null;
+      if (!res.ok) {
+        setErr((body && 'error' in body && body.error) || `Backfill failed: ${res.status}`);
+        return;
+      }
+      onBackfilled(date, body as CounterRow);
+      setFlash(date);
+      setTimeout(() => setFlash((v) => (v === date ? null : v)), 2000);
+      reset();
+      setOpen(false);
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section className="mb-8">
+      {open ? (
+        <form
+          onSubmit={submit}
+          className="flex flex-wrap items-end gap-3 rounded-glove border border-charcoal/15 bg-canvas-soft/60 px-4 py-3"
+        >
+          <label className="text-sm">
+            <span className="block mb-1 uppercase tracking-wider text-[10px] text-charcoal-soft">
+              Missed day
+            </span>
+            <input
+              type="date"
+              value={date}
+              max={today}
+              onChange={(e) => setDate(e.target.value)}
+              autoFocus
+              className="rounded-glove border border-charcoal/20 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-glove"
+            />
+          </label>
+          <Button type="submit" variant="primary" disabled={pending}>
+            {pending ? 'Backfilling…' : 'Backfill'}
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              reset();
+              setOpen(false);
+            }}
+            disabled={pending}
+          >
+            Cancel
+          </Button>
+          {err ? <p className="w-full text-sm text-glove-deep">{err}</p> : null}
+        </form>
+      ) : (
+        <div className="flex items-center gap-3 text-sm text-charcoal-soft">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="uppercase tracking-wider text-[11px] hover:text-charcoal transition-colors"
+          >
+            + Backfill a missed day
+          </button>
+          {flash ? (
+            <span className="text-[11px] text-charcoal">Added {flash}.</span>
+          ) : null}
+        </div>
+      )}
+    </section>
   );
 }
 
