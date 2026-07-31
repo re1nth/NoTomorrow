@@ -108,6 +108,42 @@ function DetailBody({
     [days, counter.createdAt, today],
   );
 
+  // Backfill via direct manipulation: click an empty past cell to arm it,
+  // click Confirm to POST. State lives here so only one cell across all
+  // strips can be armed at a time.
+  const [armed, setArmed] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [flashDay, setFlashDay] = useState<string | null>(null);
+
+  async function confirm() {
+    if (!armed || submitting) return;
+    setSubmitting(true);
+    setErr(null);
+    try {
+      const res = await fetch(`/api/counters/${counter.id}/checkin`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ day: armed }),
+      });
+      const body = (await res.json().catch(() => null)) as
+        | (CounterRow & { error?: undefined })
+        | { error: string }
+        | null;
+      if (!res.ok) {
+        setErr((body && 'error' in body && body.error) || `Backfill failed: ${res.status}`);
+        return;
+      }
+      const day = armed;
+      onBackfilled(day, body as CounterRow);
+      setFlashDay(day);
+      setTimeout(() => setFlashDay((v) => (v === day ? null : v)), 900);
+      setArmed(null);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="max-w-5xl mx-auto">
       <Link
@@ -117,7 +153,7 @@ function DetailBody({
         ← All counters
       </Link>
 
-      <header className="mt-3 mb-8 flex items-start justify-between gap-6">
+      <header className="mt-3 mb-2 flex items-start justify-between gap-6">
         <div>
           <EditableName counter={counter} onRenamed={onRenamed} />
           <div className="flex items-center gap-3 mt-2">
@@ -149,144 +185,31 @@ function DetailBody({
         />
       </header>
 
-      <Backfill
-        counter={counter}
-        days={days}
-        today={today}
-        onBackfilled={onBackfilled}
-      />
+      <p className="text-xs text-charcoal-soft mb-8">
+        Missed a day? Tap an empty square on the grid to backfill it.
+      </p>
+
+      {err ? <p className="mb-4 text-sm text-glove-deep">{err}</p> : null}
 
       <div className="space-y-10">
         {strips.map((s) => (
-          <StripBlock key={s.key} strip={s} fillHex={current.hex} today={today} />
+          <StripBlock
+            key={s.key}
+            strip={s}
+            fillHex={current.hex}
+            today={today}
+            armed={armed}
+            submitting={submitting}
+            flashDay={flashDay}
+            onArm={setArmed}
+            onConfirm={confirm}
+            onCancel={() => setArmed(null)}
+          />
         ))}
       </div>
 
       <DangerZone counter={counter} />
     </div>
-  );
-}
-
-/**
- * Backfill a missed day. Only exposed on the detail page — the main
- * counters card intentionally offers today-only check-in so the daily
- * rhythm stays honest. Guarded against future dates client-side; the
- * route revalidates. Duplicate days come back as 409.
- */
-function Backfill({
-  counter,
-  days,
-  today,
-  onBackfilled,
-}: {
-  counter: CounterRow;
-  days: Set<string>;
-  today: string;
-  onBackfilled: (day: string, updated: CounterRow) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [date, setDate] = useState('');
-  const [pending, setPending] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const [flash, setFlash] = useState<string | null>(null);
-
-  function reset() {
-    setDate('');
-    setErr(null);
-    setPending(false);
-  }
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setErr(null);
-    if (!date) {
-      setErr('Pick a date.');
-      return;
-    }
-    if (date > today) {
-      setErr("Can't backfill a future day.");
-      return;
-    }
-    if (days.has(date)) {
-      setErr('That day is already checked in.');
-      return;
-    }
-    setPending(true);
-    try {
-      const res = await fetch(`/api/counters/${counter.id}/checkin`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ day: date }),
-      });
-      const body = (await res.json().catch(() => null)) as
-        | (CounterRow & { error?: undefined })
-        | { error: string }
-        | null;
-      if (!res.ok) {
-        setErr((body && 'error' in body && body.error) || `Backfill failed: ${res.status}`);
-        return;
-      }
-      onBackfilled(date, body as CounterRow);
-      setFlash(date);
-      setTimeout(() => setFlash((v) => (v === date ? null : v)), 2000);
-      reset();
-      setOpen(false);
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <section className="mb-8">
-      {open ? (
-        <form
-          onSubmit={submit}
-          className="flex flex-wrap items-end gap-3 rounded-glove border border-charcoal/15 bg-canvas-soft/60 px-4 py-3"
-        >
-          <label className="text-sm">
-            <span className="block mb-1 uppercase tracking-wider text-[10px] text-charcoal-soft">
-              Missed day
-            </span>
-            <input
-              type="date"
-              value={date}
-              max={today}
-              onChange={(e) => setDate(e.target.value)}
-              autoFocus
-              className="rounded-glove border border-charcoal/20 bg-canvas px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-glove"
-            />
-          </label>
-          <Button type="submit" variant="primary" disabled={pending}>
-            {pending ? 'Backfilling…' : 'Backfill'}
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            onClick={() => {
-              reset();
-              setOpen(false);
-            }}
-            disabled={pending}
-          >
-            Cancel
-          </Button>
-          {err ? <p className="w-full text-sm text-glove-deep">{err}</p> : null}
-        </form>
-      ) : (
-        <div className="flex items-center gap-3 text-sm text-charcoal-soft">
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="uppercase tracking-wider text-[11px] hover:text-charcoal transition-colors"
-          >
-            + Backfill a missed day
-          </button>
-          {flash ? (
-            <span className="text-[11px] text-charcoal">Added {flash}.</span>
-          ) : null}
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -564,27 +487,64 @@ function StripBlock({
   strip,
   fillHex,
   today,
+  armed,
+  submitting,
+  flashDay,
+  onArm,
+  onConfirm,
+  onCancel,
 }: {
   strip: Strip;
   fillHex: string;
   today: string;
+  armed: string | null;
+  submitting: boolean;
+  flashDay: string | null;
+  onArm: (day: string) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
 }) {
   const [hover, setHover] = useState<{ iso: string; filled: boolean; inFuture: boolean } | null>(
     null,
   );
+  // Armed cell is a strip-local concern only if this strip contains it —
+  // the confirm prompt is contextual to the row you clicked.
+  const armedHere = armed !== null && strip.columns.some((col) => col.some((c) => c.iso === armed));
   return (
     <section>
-      <div className="flex items-baseline justify-between mb-2">
+      <div className="flex items-baseline justify-between gap-3 mb-2 min-h-[18px]">
         <span className="font-display uppercase tracking-[0.2em] text-xs text-charcoal-soft">
           {strip.label}
         </span>
-        <span className="text-[10px] text-charcoal-soft tabular-nums h-4">
-          {hover
-            ? hover.inFuture
-              ? `${hover.iso} · —`
-              : `${hover.iso}${hover.filled ? ' · checked in' : ''}`
-            : ''}
-        </span>
+        {armedHere && armed ? (
+          <span className="flex items-center gap-2 text-[11px] text-charcoal">
+            <span className="tabular-nums">Backfill {armed}?</span>
+            <button
+              type="button"
+              onClick={onConfirm}
+              disabled={submitting}
+              className="uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-full bg-glove text-white hover:bg-glove-deep transition-colors disabled:opacity-50"
+            >
+              {submitting ? 'Saving…' : 'Confirm'}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={submitting}
+              className="uppercase tracking-wider text-[10px] px-2 py-0.5 rounded-full text-charcoal-soft hover:text-charcoal transition-colors disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <span className="text-[10px] text-charcoal-soft tabular-nums h-4">
+            {hover
+              ? hover.inFuture
+                ? `${hover.iso} · —`
+                : `${hover.iso}${hover.filled ? ' · checked in' : ''}`
+              : ''}
+          </span>
+        )}
       </div>
       {/* Month label row — same trick as the card mini-heatmap. */}
       <div
@@ -615,28 +575,58 @@ function StripBlock({
         {strip.columns.flatMap((col) =>
           col.map((c) => {
             const isHovered = hover?.iso === c.iso;
-            const outline = isHovered
-              ? '1px solid rgba(234, 228, 214, 0.9)'
-              : c.iso === today
-                ? '1px solid rgba(234, 228, 214, 0.65)'
-                : 'none';
+            const isArmed = armed === c.iso;
+            const isFlashing = flashDay === c.iso;
+            const backfillable = !c.filled && !c.inFuture;
+            const outline = isArmed
+              ? '1.5px solid #E63946'
+              : isHovered
+                ? backfillable
+                  ? '1px solid rgba(230, 57, 70, 0.7)'
+                  : '1px solid rgba(234, 228, 214, 0.9)'
+                : c.iso === today
+                  ? '1px solid rgba(234, 228, 214, 0.65)'
+                  : 'none';
+            const bg = c.inFuture
+              ? 'transparent'
+              : c.filled
+                ? fillHex
+                : isHovered && backfillable
+                  ? 'rgba(230, 57, 70, 0.18)'
+                  : 'rgba(234, 228, 214, 0.08)';
+            const commonStyle = {
+              backgroundColor: bg,
+              outline,
+              outlineOffset: outline === 'none' ? 0 : 1,
+            } as const;
+            const handleEnter = () =>
+              setHover({ iso: c.iso, filled: c.filled, inFuture: c.inFuture });
+            if (backfillable) {
+              return (
+                <button
+                  key={c.iso}
+                  type="button"
+                  aria-label={
+                    isArmed ? `Confirm backfill for ${c.iso}` : `Backfill ${c.iso}`
+                  }
+                  title={c.iso}
+                  disabled={submitting && !isArmed}
+                  onMouseEnter={handleEnter}
+                  onClick={() => (isArmed ? onConfirm() : onArm(c.iso))}
+                  className={`aspect-square rounded-[2px] p-0 border-0 cursor-pointer transition-transform hover:scale-110 ${
+                    isFlashing ? 'animate-pulse' : ''
+                  }`}
+                  style={commonStyle}
+                />
+              );
+            }
             return (
               <div
                 key={c.iso}
                 title={`${c.iso}${c.filled ? ' — checked in' : ''}`}
-                className="aspect-square rounded-[2px]"
-                onMouseEnter={() =>
-                  setHover({ iso: c.iso, filled: c.filled, inFuture: c.inFuture })
-                }
-                style={{
-                  backgroundColor: c.inFuture
-                    ? 'transparent'
-                    : c.filled
-                      ? fillHex
-                      : 'rgba(234, 228, 214, 0.08)',
-                  outline,
-                  outlineOffset: outline === 'none' ? 0 : 1,
-                }}
+                className={`aspect-square rounded-[2px] ${isFlashing ? 'animate-pulse' : ''}`}
+                onMouseEnter={handleEnter}
+                style={commonStyle}
               />
             );
           }),
