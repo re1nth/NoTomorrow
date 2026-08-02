@@ -24,6 +24,9 @@ export const users = sqliteTable(
     email: text('email'),
     emailVerified: integer('email_verified', { mode: 'timestamp_ms' }),
     image: text('image'),
+    // bcrypt hash for Credentials-provider logins. Null for rows created
+    // outside the signup flow (desktop seed, legacy OAuth accounts).
+    passwordHash: text('password_hash'),
   },
   (table) => ({
     handleUnique: uniqueIndex('users_handle_unique').on(table.handle),

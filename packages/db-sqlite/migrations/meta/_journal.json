@@ -43,6 +43,13 @@
       "when": 1785110400000,
       "tag": "0005_web_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1785715200000,
+      "tag": "0006_password_auth",
+      "breakpoints": true
     }
   ]
 }

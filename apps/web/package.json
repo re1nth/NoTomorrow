@@ -12,9 +12,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@auth/drizzle-adapter": "^1.11.3",
     "@notomorrow/db-sqlite": "workspace:*",
     "@notomorrow/ui": "workspace:*",
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^11.5.0",
     "drizzle-orm": "^0.36.4",
     "framer-motion": "^11.11.17",

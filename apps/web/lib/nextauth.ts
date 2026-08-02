@@ -3,83 +3,56 @@
  * its own module so `NOTOMORROW_AUTH=local` never has to import it —
  * `auth-cloud.ts` uses dynamic `import()` and this file's construction
  * (which reads AUTH_* env vars) never runs on the desktop.
+ *
+ * Strategy: email + password via the Credentials provider, backed by a
+ * bcrypt hash in `users.password_hash`. Session strategy is `jwt` —
+ * Credentials logins can't use database sessions in Auth.js (the
+ * adapter's createSession never fires for them), so we mint a signed
+ * JWT with the user id and rehydrate it in the session callback.
  */
-import { DrizzleAdapter } from '@auth/drizzle-adapter';
-import { accounts, sessions, users, verificationTokens } from '@notomorrow/db-sqlite';
+import bcrypt from 'bcryptjs';
+import { users } from '@notomorrow/db-sqlite';
 import { eq } from 'drizzle-orm';
 import NextAuth from 'next-auth';
-import Google from 'next-auth/providers/google';
-import { cookies } from 'next/headers';
+import Credentials from 'next-auth/providers/credentials';
 import { db } from './db';
 
-function slugFromEmail(email: string): string {
-  const localpart = email.split('@')[0] ?? 'user';
-  const slug = localpart
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 24);
-  return slug || 'user';
-}
-
-async function chooseUniqueHandle(base: string, userId: string): Promise<string> {
-  for (let i = 0; i < 50; i++) {
-    const candidate = i === 0 ? base : `${base}-${i}`;
-    const existing = await db.query.users.findFirst({
-      where: eq(users.handle, candidate),
-    });
-    if (!existing || existing.id === userId) return candidate;
-  }
-  // Extremely unlikely — the $defaultFn placeholder handle stays intact.
-  return '';
-}
-
-function isValidTimeZone(tz: string): boolean {
-  try {
-    new Intl.DateTimeFormat('en-CA', { timeZone: tz });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function readBrowserTimeZone(): Promise<string | null> {
-  const store = await cookies();
-  const raw = store.get('notomorrow_tz')?.value;
-  if (!raw) return null;
-  const decoded = decodeURIComponent(raw);
-  return isValidTimeZone(decoded) ? decoded : null;
-}
-
-// Cast because our `users` table has extra columns (handle, timezone,
-// joinedAt, avatar) that the adapter's shape doesn't know about. The
-// adapter only reads the columns it expects (id, name, email,
-// emailVerified, image) — the extras are ignored on read and defaulted
-// on insert via drizzle's $defaultFn.
 export const { auth, handlers, signIn, signOut } = NextAuth({
-  adapter: DrizzleAdapter(db, {
-    usersTable: users as never,
-    accountsTable: accounts as never,
-    sessionsTable: sessions as never,
-    verificationTokensTable: verificationTokens as never,
-  }),
-  providers: [Google],
-  session: { strategy: 'database' },
+  providers: [
+    Credentials({
+      credentials: {
+        email: { label: 'Email', type: 'email' },
+        password: { label: 'Password', type: 'password' },
+      },
+      async authorize(credentials) {
+        const email =
+          typeof credentials?.email === 'string' ? credentials.email.trim().toLowerCase() : '';
+        const password = typeof credentials?.password === 'string' ? credentials.password : '';
+        if (!email || !password) return null;
+        const row = await db.query.users.findFirst({ where: eq(users.email, email) });
+        if (!row?.passwordHash) return null;
+        const ok = await bcrypt.compare(password, row.passwordHash);
+        if (!ok) return null;
+        return { id: row.id, email: row.email, name: row.name };
+      },
+    }),
+  ],
+  session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
   },
-  events: {
-    async createUser({ user }) {
-      if (!user.id || !user.email) return;
-      const base = slugFromEmail(user.email);
-      const nice = await chooseUniqueHandle(base, user.id);
-      const tz = await readBrowserTimeZone();
-      const patch: { handle?: string; timezone?: string } = {};
-      if (nice) patch.handle = nice;
-      if (tz) patch.timezone = tz;
-      if (Object.keys(patch).length === 0) return;
-      await db.update(users).set(patch).where(eq(users.id, user.id));
+  callbacks: {
+    async jwt({ token, user }) {
+      // `user` is only defined on the sign-in tick; pin the id onto the
+      // token so every subsequent request can recover it without a DB hit.
+      if (user?.id) token.sub = user.id;
+      return token;
+    },
+    async session({ session, token }) {
+      if (session.user && typeof token.sub === 'string') {
+        session.user.id = token.sub;
+      }
+      return session;
     },
   },
 });

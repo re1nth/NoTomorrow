@@ -45,15 +45,15 @@ importers:
 
   apps/web:
     dependencies:
-      '@auth/drizzle-adapter':
-        specifier: ^1.11.3
-        version: 1.11.3
       '@notomorrow/db-sqlite':
         specifier: workspace:*
         version: link:../../packages/db-sqlite
       '@notomorrow/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      bcryptjs:
+        specifier: ^3.0.3
+        version: 3.0.3
       better-sqlite3:
         specifier: ^11.5.0
         version: 11.10.0
@@ -208,9 +208,6 @@ packages:
         optional: true
       nodemailer:
         optional: true
-
-  '@auth/drizzle-adapter@1.11.3':
-    resolution: {integrity: sha512-TxqVasPVuf7LDAT1Yuu6bftpuet8o0tjdXW+mXpnXWdSRPQsomdzMoz9RsXkFN/JfdK+/DwdgOEmOTv1gbiFNw==}
 
   '@babel/code-frame@7.29.7':
     resolution: {integrity: sha512-Aup7aUOfpbAUg2ROOJN6Iw5f9DMBlzu0mIkm/malLQFN/YQgO48wCj0Kxa3sEHJvPVFg7siR+qRInwXd2qhQKw==}
@@ -1975,6 +1972,10 @@ packages:
   baseline-browser-mapping@2.10.37:
     resolution: {integrity: sha512-girxaJ7WZssDOFhzCGZTDKoTa1gk6A1TbflaYTpykLJ4UU9Fz9kx1aREM8JCuoVHbL8X8T/mJg7w2oYSq72Oig==}
     engines: {node: '>=6.0.0'}
+    hasBin: true
+
+  bcryptjs@3.0.3:
+    resolution: {integrity: sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==}
     hasBin: true
 
   better-opn@3.0.2:
@@ -4162,14 +4163,6 @@ snapshots:
       preact: 10.24.3
       preact-render-to-string: 6.5.11(preact@10.24.3)
 
-  '@auth/drizzle-adapter@1.11.3':
-    dependencies:
-      '@auth/core': 0.41.3
-    transitivePeerDependencies:
-      - '@simplewebauthn/browser'
-      - '@simplewebauthn/server'
-      - nodemailer
-
   '@babel/code-frame@7.29.7':
     dependencies:
       '@babel/helper-validator-identifier': 7.29.7
@@ -5648,6 +5641,8 @@ snapshots:
   base64-js@1.5.1: {}
 
   baseline-browser-mapping@2.10.37: {}
+
+  bcryptjs@3.0.3: {}
 
   better-opn@3.0.2:
     dependencies:

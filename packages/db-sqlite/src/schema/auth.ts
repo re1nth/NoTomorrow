@@ -1,12 +1,10 @@
 /**
- * Auth.js (@auth/drizzle-adapter) tables.
- *
- * Field names on the Drizzle objects must match what the adapter reads
- * (userId, providerAccountId, sessionToken, ...). SQL column names can
- * differ, so we keep repo-wide snake_case at the database layer.
- *
- * The desktop runtime never populates these tables — they only fill up
- * once NOTOMORROW_AUTH=cloud and users start signing in with Google.
+ * Legacy Auth.js adapter tables. Kept as no-op schema definitions so
+ * databases created from migration 0005 still line up with the drizzle
+ * client, but no code reads or writes them anymore — cloud mode now
+ * uses email + password via the Credentials provider and JWT sessions
+ * (see apps/web/lib/nextauth.ts). Nothing outside this file references
+ * these exports; a future migration can drop the underlying tables.
  */
 import {
   integer,
