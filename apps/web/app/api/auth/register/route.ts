@@ -1,21 +1,20 @@
 /**
  * POST /api/auth/register — create a new user with email + password.
  *
- * Only relevant in cloud mode (NOTOMORROW_AUTH=cloud). The desktop
- * runtime seeds a single implicit user and never renders a sign-up
- * surface, so this route is unreachable there.
- *
- * The password is bcrypt-hashed before storage. Successful signup
- * returns 201 with the new user id; the client is expected to follow
- * up with the Auth.js Credentials sign-in to establish a session.
+ * The user is created immediately but with `email_verified = null`, so
+ * sign-in via /api/auth/callback/credentials is blocked until they
+ * enter the 6-digit code emailed at signup. Passwords are bcrypt-hashed
+ * and must clear the zxcvbn MIN_SCORE bar.
  */
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
-import { users } from '@notomorrow/db-sqlite';
+import { emailVerificationCodes, users } from '@notomorrow/db-sqlite';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { sendVerificationCode } from '@/lib/mailer';
+import { MIN_SCORE, scorePassword } from '@/lib/password';
 
 const RegisterBody = z
   .object({
@@ -23,6 +22,8 @@ const RegisterBody = z
     password: z.string().min(8).max(200),
   })
   .strict();
+
+const CODE_TTL_MS = 15 * 60 * 1000;
 
 function slugFromEmail(email: string): string {
   const localpart = email.split('@')[0] ?? 'user';
@@ -43,7 +44,6 @@ async function chooseUniqueHandle(base: string): Promise<string> {
     });
     if (!existing) return candidate;
   }
-  // Extremely unlikely — fall back to the random default in the schema.
   return '';
 }
 
@@ -64,6 +64,15 @@ async function readBrowserTimeZone(): Promise<string | null> {
   return isValidTimeZone(decoded) ? decoded : null;
 }
 
+function newSixDigitCode(): string {
+  // crypto.randomInt would need Node import; a rejection-sampled Math.random
+  // is fine for a 6-digit code (equivalent bias is negligible) but let's use
+  // Web Crypto to stay uniform.
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return String((buf[0] as number) % 1_000_000).padStart(6, '0');
+}
+
 export async function POST(req: Request) {
   const body = await req.json().catch(() => null);
   const parsed = RegisterBody.safeParse(body);
@@ -75,6 +84,20 @@ export async function POST(req: Request) {
   }
   const { email, password } = parsed.data;
 
+  const strength = scorePassword(password, [email]);
+  if (!strength.acceptable) {
+    return NextResponse.json(
+      {
+        error: 'password too weak',
+        score: strength.score,
+        minScore: MIN_SCORE,
+        warning: strength.warning,
+        suggestions: strength.suggestions,
+      },
+      { status: 400 },
+    );
+  }
+
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) {
     return NextResponse.json({ error: 'email already registered' }, { status: 409 });
@@ -85,7 +108,7 @@ export async function POST(req: Request) {
   const handle = (await chooseUniqueHandle(handleBase)) || undefined;
   const timezone = (await readBrowserTimeZone()) ?? undefined;
 
-  const [row] = await db
+  const [user] = await db
     .insert(users)
     .values({
       email,
@@ -95,8 +118,22 @@ export async function POST(req: Request) {
     })
     .returning({ id: users.id });
 
-  if (!row) {
+  if (!user) {
     return NextResponse.json({ error: 'insert failed' }, { status: 500 });
   }
-  return NextResponse.json({ id: row.id }, { status: 201 });
+
+  const code = newSixDigitCode();
+  const codeHash = await bcrypt.hash(code, 10);
+  await db.insert(emailVerificationCodes).values({
+    userId: user.id,
+    codeHash,
+    expiresAt: new Date(Date.now() + CODE_TTL_MS),
+  });
+
+  await sendVerificationCode(email, code);
+
+  return NextResponse.json(
+    { needsVerification: true, email },
+    { status: 201 },
+  );
 }

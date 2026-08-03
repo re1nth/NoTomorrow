@@ -10,25 +10,36 @@ export const dynamic = 'force-dynamic';
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; error?: string }>;
+  searchParams: Promise<{ next?: string; verified?: string; reset?: string }>;
 }) {
-  const { next } = await searchParams;
+  const { next, verified, reset } = await searchParams;
   const session = await auth();
   if (session?.user?.id) {
     redirect(safeNext(next));
   }
 
+  let flash: string | null = null;
+  if (verified === '1') flash = 'Email verified — sign in to continue.';
+  else if (reset === '1') flash = 'Password reset — sign in with your new password.';
+
   return (
     <main className="min-h-screen flex items-center justify-center bg-black px-6 py-16">
-      <div className="relative z-10 flex flex-col items-center gap-8 max-w-md w-full">
+      <div className="relative z-10 flex flex-col items-center gap-6 max-w-md w-full">
         <Header />
-        <CredentialsForm mode="login" next={safeNext(next)} />
-        <p className="text-sm text-white/70">
-          New here?{' '}
-          <Link href={registerHref(next)} className="text-[#E63946] hover:underline">
-            Create an account
-          </Link>
-        </p>
+        <CredentialsForm mode="login" next={safeNext(next)} initialFlash={flash} />
+        <div className="text-sm text-white/70 flex flex-col items-center gap-2">
+          <p>
+            <Link href="/forgot-password" className="text-[#E63946] hover:underline">
+              Forgot password?
+            </Link>
+          </p>
+          <p>
+            New here?{' '}
+            <Link href={registerHref(next)} className="text-[#E63946] hover:underline">
+              Create an account
+            </Link>
+          </p>
+        </div>
       </div>
     </main>
   );

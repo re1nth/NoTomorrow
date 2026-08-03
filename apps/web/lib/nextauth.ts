@@ -33,6 +33,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         if (!row?.passwordHash) return null;
         const ok = await bcrypt.compare(password, row.passwordHash);
         if (!ok) return null;
+        // Reject unverified accounts. Client shows a generic error plus a
+        // "verify your email" nudge so users can self-serve without
+        // leaking whether an account exists.
+        if (!row.emailVerified) return null;
         return { id: row.id, email: row.email, name: row.name };
       },
     }),
