@@ -101,6 +101,19 @@ export function CredentialsForm({ mode, next, initialFlash }: Props) {
         redirect: false,
       });
       if (!result || result.error) {
+        if (result?.code === 'email_not_verified') {
+          // Password was correct — send them straight to verify. Kick off
+          // a fresh code in the background so a stale one from days ago
+          // doesn't waste their time.
+          void fetch('/api/auth/verify-email?resend=1', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ email }),
+          });
+          const nextParam = next && next !== '/counters' ? `&next=${encodeURIComponent(next)}` : '';
+          router.push(`/verify-email?email=${encodeURIComponent(email)}${nextParam}`);
+          return;
+        }
         setError('Invalid email or password.');
         return;
       }

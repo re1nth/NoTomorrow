@@ -13,9 +13,24 @@
 import bcrypt from 'bcryptjs';
 import { users } from '@notomorrow/db-sqlite';
 import { eq } from 'drizzle-orm';
-import NextAuth from 'next-auth';
+import NextAuth, { CredentialsSignin } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 import { db } from './db';
+
+/**
+ * Thrown from `authorize()` when the password is correct but the account
+ * hasn't verified its email. The `code` string surfaces on the client as
+ * `result.code` from signIn('credentials', { redirect: false }), and the
+ * login form uses it to bounce the user to /verify-email instead of
+ * showing a generic "invalid credentials" error.
+ *
+ * This does leak "credentials correct but unverified" to a caller — for
+ * a habit tracker with no sensitive account state that's the right
+ * tradeoff for usable sign-in.
+ */
+class EmailNotVerifiedError extends CredentialsSignin {
+  override code = 'email_not_verified';
+}
 
 export const { auth, handlers, signIn, signOut } = NextAuth({
   providers: [
@@ -33,10 +48,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
         if (!row?.passwordHash) return null;
         const ok = await bcrypt.compare(password, row.passwordHash);
         if (!ok) return null;
-        // Reject unverified accounts. Client shows a generic error plus a
-        // "verify your email" nudge so users can self-serve without
-        // leaking whether an account exists.
-        if (!row.emailVerified) return null;
+        if (!row.emailVerified) throw new EmailNotVerifiedError();
         return { id: row.id, email: row.email, name: row.name };
       },
     }),
