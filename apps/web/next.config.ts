@@ -1,4 +1,8 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { NextConfig } from 'next';
+
+const __dirname_esm = path.dirname(fileURLToPath(import.meta.url));
 
 /**
  * Next.js config. We transpile the workspace packages because they ship raw
@@ -11,11 +15,15 @@ import type { NextConfig } from 'next';
  */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
-  // We deliberately do NOT use `output: 'standalone'` — Next's standalone
-  // tree produces its own server.js and doesn't compose cleanly with our
-  // in-process `next({dev:false,dir})` boot in apps/desktop/src/main/server.
-  // electron-builder ships the regular `.next/` + source + node_modules tree
-  // via `extraResources` instead.
+  // Standalone output: Next's file tracer produces .next/standalone/ with only
+  // the node_modules files actually reached at runtime. apps/desktop stages
+  // that tree into the .app and forks its server.js in a child process — see
+  // apps/desktop/build/stage-web.mjs and apps/desktop/src/main/server.ts.
+  // Cuts the packaged web/ payload from ~410 MB to ~55 MB.
+  output: 'standalone',
+  // Tracer needs to see the workspace root so it can follow deps hoisted into
+  // the top-level node_modules (pnpm's default layout).
+  outputFileTracingRoot: path.join(__dirname_esm, '..', '..'),
   transpilePackages: ['@notomorrow/ui', '@notomorrow/db-sqlite'],
   // Native modules — Next must not bundle these. `bindings` is the loader
   // better-sqlite3 uses to find its compiled .node file; if webpack bundles

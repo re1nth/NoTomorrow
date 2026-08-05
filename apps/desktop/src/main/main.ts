@@ -3,7 +3,7 @@ import { BrowserWindow, app } from 'electron';
 import { ensureLocalUser } from './bootstrap';
 import { runMigrations } from './migrate';
 import { getMigrationsDir, getSqliteDbPath, getWebAppDir } from './paths';
-import { startNext } from './server';
+import { type NextHandle, startNext } from './server';
 import { setupPomodoroTray } from './tray';
 
 async function boot(): Promise<void> {
@@ -32,8 +32,14 @@ async function boot(): Promise<void> {
   const localUser = ensureLocalUser(dbFile);
   console.log(`[notomorrow] local user: ${localUser.handle} (${localUser.id})`);
 
-  const url = await startNext(getWebAppDir());
-  console.log(`[notomorrow] next ready at ${url}`);
+  const next: NextHandle = await startNext(getWebAppDir());
+  console.log(`[notomorrow] next ready at ${next.url}`);
+
+  // Tear down the Next child (packaged mode) before the app exits. Without
+  // this, forked processes can outlive Electron and hold the port.
+  app.on('before-quit', () => {
+    void next.stop();
+  });
 
   const win = new BrowserWindow({
     width: 1280,
@@ -47,7 +53,7 @@ async function boot(): Promise<void> {
     },
   });
 
-  await win.loadURL(url);
+  await win.loadURL(next.url);
 
   setupPomodoroTray(() => BrowserWindow.getAllWindows()[0] ?? null);
 
@@ -68,7 +74,7 @@ async function boot(): Promise<void> {
           nodeIntegration: false,
         },
       });
-      void w.loadURL(url);
+      void w.loadURL(next.url);
     }
   });
 }

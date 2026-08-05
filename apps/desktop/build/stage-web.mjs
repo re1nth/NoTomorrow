@@ -1,17 +1,22 @@
 #!/usr/bin/env node
 /**
- * Stages a self-contained apps/web tree with hoisted (non-symlinked)
- * node_modules into apps/desktop/build/web-staging/. electron-builder
- * ships that directory as an extraResource so the packaged .app runs on
- * any Mac — no source repo required.
+ * Stages Next's standalone output tree into apps/desktop/build/web-staging/.
+ * electron-builder ships that directory as an extraResource so the packaged
+ * .app runs on any arm64 Mac — no source repo required.
  *
- * Steps:
- *   1. pnpm deploy --filter web --prod  → real files, workspace deps
- *      inlined into node_modules.
- *   2. Copy `.next/` and `public/` in (deploy respects .gitignore, which
- *      excludes the built output).
- *   3. electron-rebuild against the staged better-sqlite3 so the runtime
- *      finds an Electron-ABI binary instead of the Node-prebuilt one.
+ * Layout produced (mirrors what Next expects when running server.js):
+ *   web-staging/
+ *     apps/web/
+ *       server.js           <- Next standalone entry
+ *       package.json
+ *       .next/              <- server chunks + copied static assets
+ *       public/             <- copied from apps/web/public
+ *     node_modules/         <- traced by Next (only files actually reached)
+ *     package.json
+ *
+ * apps/desktop/src/main/server.ts forks apps/web/server.js in a child
+ * process. Native modules (better-sqlite3) get rebuilt against the staged
+ * tree so they match the Electron ABI.
  */
 import { execFileSync } from 'node:child_process';
 import { cpSync, existsSync, rmSync } from 'node:fs';
@@ -24,40 +29,33 @@ const repoRoot = resolve(desktopDir, '..', '..');
 const webDir = resolve(repoRoot, 'apps', 'web');
 const stageDir = resolve(here, 'web-staging');
 
+const nextOut = resolve(webDir, '.next');
+const standaloneDir = resolve(nextOut, 'standalone');
+if (!existsSync(standaloneDir)) {
+  throw new Error(
+    `[notomorrow] no .next/standalone at ${standaloneDir} — run \`pnpm --filter web build\` first (next.config.ts must set output:'standalone').`,
+  );
+}
+
 console.log(`[notomorrow] staging web -> ${stageDir}`);
 rmSync(stageDir, { recursive: true, force: true });
 
-execFileSync(
-  'pnpm',
-  ['--filter', 'web', 'deploy', '--prod', stageDir],
-  { cwd: repoRoot, stdio: 'inherit' },
-);
+// Copy the entire standalone tree. Includes apps/web/server.js, the
+// tracer-selected node_modules, and the root package.json.
+cpSync(standaloneDir, stageDir, { recursive: true });
 
-const nextOut = resolve(webDir, '.next');
-if (!existsSync(nextOut)) {
-  throw new Error(
-    `[notomorrow] no .next/ at ${nextOut} — run \`pnpm --filter web build\` first`,
-  );
-}
-cpSync(nextOut, resolve(stageDir, '.next'), { recursive: true });
-
-// Prune build-time-only outputs from the staged .next/ — cache alone is
-// ~130 MB of webpack scratch that plays no role in serving.
-for (const junk of ['cache', 'trace', 'diagnostics', 'types']) {
-  rmSync(resolve(stageDir, '.next', junk), { recursive: true, force: true });
-}
-
+// server.js expects static assets under apps/web/.next/static and
+// public assets under apps/web/public — Next intentionally excludes both
+// from the standalone tree (they're often served by a CDN).
+const stagedWeb = resolve(stageDir, 'apps', 'web');
+cpSync(resolve(nextOut, 'static'), resolve(stagedWeb, '.next', 'static'), { recursive: true });
 const publicDir = resolve(webDir, 'public');
 if (existsSync(publicDir)) {
-  cpSync(publicDir, resolve(stageDir, 'public'), { recursive: true });
+  cpSync(publicDir, resolve(stagedWeb, 'public'), { recursive: true });
 }
 
-// pnpm deploy respects the workspace tsconfig/vitest/tests; none of them
-// run at serve time. Drop them so the DMG isn't shipping test fixtures.
-for (const junk of ['tests', 'tsconfig.tsbuildinfo', 'vitest.config.ts', 'README.md']) {
-  rmSync(resolve(stageDir, junk), { recursive: true, force: true });
-}
-
+// Rebuild native modules against Electron's ABI. `-m stageDir` tells
+// electron-rebuild to walk the staged node_modules rather than the repo.
 console.log('[notomorrow] rebuilding native deps for Electron in staged tree');
 execFileSync(
   'npx',
