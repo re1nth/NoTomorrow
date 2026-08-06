@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card } from '@/lib/ui';
-import { beltFor, todayLocal } from '../belts';
+import { beltFor, categoryFor, todayLocal } from '../belts';
 
 interface CounterRow {
   id: string;
@@ -147,7 +147,7 @@ function DetailBody({
   return (
     <div className="max-w-5xl mx-auto">
       <Link
-        href="/counters"
+        href={`/counters?category=${categoryFor(current)}`}
         className="text-xs uppercase tracking-wider text-charcoal-soft hover:text-charcoal transition-colors"
       >
         ← All counters

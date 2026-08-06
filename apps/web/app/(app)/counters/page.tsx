@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SectionTitle } from '@/components/SectionTitle';
 import { Button, Card } from '@/lib/ui';
@@ -22,7 +23,24 @@ export default function CountersPage() {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: '', initialCount: 0 });
   const [pulsing, setPulsing] = useState<string | null>(null);
-  const [category, setCategory] = useState<Category>('Warmup');
+  // Category lives in the URL so returning from a counter detail page lands
+  // on the belt-appropriate tab; local state alone would be preserved across
+  // App Router soft navigations and ignore the ?category= hint.
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawCategory = searchParams?.get('category');
+  const category: Category =
+    rawCategory === 'Hanging' || rawCategory === 'Barrage' || rawCategory === 'Warmup'
+      ? rawCategory
+      : 'Warmup';
+  const setCategory = useCallback(
+    (c: Category) => {
+      const p = new URLSearchParams(searchParams?.toString() ?? '');
+      p.set('category', c);
+      router.replace(`/counters?${p.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
   // `today` in state so a mount that survives midnight (or a laptop resume
   // from sleep) still re-enables "+1 today" without a page reload.
   const [today, setToday] = useState(todayLocal);
@@ -195,40 +213,42 @@ export default function CountersPage() {
 
       {loading ? (
         <p className="text-sm text-charcoal-soft">Loading…</p>
-      ) : items.length === 0 ? (
-        <Card tone="default" className="text-center py-12">
-          <p className="font-display text-2xl mb-2">No threads yet.</p>
-          <p className="text-sm text-charcoal-soft">
-            Add one — gym, badminton, builder — and start your streak.
-          </p>
-        </Card>
       ) : (
         <>
           <CategoryTabs items={items} active={category} onSelect={setCategory} />
-          <div className="grid grid-cols-1 gap-5 max-w-[896px] mx-auto">
-            <AnimatePresence initial={false}>
-              {items
-                .filter((c) => categoryFor(beltFor(c.count).current) === category)
-                .sort((a, b) => b.count - a.count)
-                .map((c) => (
-                  <CounterCard
-                    key={c.id}
-                    counter={c}
-                    pulsing={pulsing === c.id}
-                    today={today}
-                    onCheckIn={() => checkIn(c.id)}
-                  />
-                ))}
-            </AnimatePresence>
-            {items.every((c) => categoryFor(beltFor(c.count).current) !== category) ? (
-              <Card tone="default" className="text-center py-10">
-                <p className="font-display text-xl mb-1">Nothing at {category} yet.</p>
-                <p className="text-sm text-charcoal-soft">
-                  Threads land here as they progress through belts.
-                </p>
-              </Card>
-            ) : null}
-          </div>
+          {items.length === 0 ? (
+            <Card tone="default" className="text-center py-12">
+              <p className="font-display text-2xl mb-2">No threads yet.</p>
+              <p className="text-sm text-charcoal-soft">
+                Add one — gym, badminton, builder — and start your streak.
+              </p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 gap-5 max-w-[896px] mx-auto">
+              <AnimatePresence initial={false}>
+                {items
+                  .filter((c) => categoryFor(beltFor(c.count).current) === category)
+                  .sort((a, b) => b.count - a.count)
+                  .map((c) => (
+                    <CounterCard
+                      key={c.id}
+                      counter={c}
+                      pulsing={pulsing === c.id}
+                      today={today}
+                      onCheckIn={() => checkIn(c.id)}
+                    />
+                  ))}
+              </AnimatePresence>
+              {items.every((c) => categoryFor(beltFor(c.count).current) !== category) ? (
+                <Card tone="default" className="text-center py-10">
+                  <p className="font-display text-xl mb-1">Nothing at {category} yet.</p>
+                  <p className="text-sm text-charcoal-soft">
+                    Threads land here as they progress through belts.
+                  </p>
+                </Card>
+              ) : null}
+            </div>
+          )}
         </>
       )}
     </div>
