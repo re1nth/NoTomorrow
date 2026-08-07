@@ -4,7 +4,6 @@ import { SignOutButton } from './SignOutButton';
 const links = [
   { href: '/counters', label: 'Counters' },
   { href: '/pomodoro', label: 'Pomodoro' },
-  { href: '/performance', label: 'Performance' },
   { href: '/settings', label: 'Settings' },
 ] as const;
 

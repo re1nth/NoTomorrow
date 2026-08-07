@@ -18,15 +18,15 @@ Everything below follows from these four choices.
 ## 2. Current architecture (recap)
 
 - `apps/web` — Next.js 15 (App Router, React 19). Client pages under
-  `app/(app)/{counters,performance,pomodoro}` and REST route handlers
-  under `app/api/{counters,performance}`.
+  `app/(app)/{counters,pomodoro}` and REST route handlers under
+  `app/api/counters`.
 - `apps/desktop` — Electron shell that sets `SQLITE_DB_PATH`, runs
   Drizzle migrations, ensures one local user exists, boots Next
   in-process, and loads it into a `BrowserWindow`. Also wires a macOS
   menu-bar tray for the Pomodoro buzz.
 - `packages/db-sqlite` — Drizzle schema (`users`, `counters`,
-  `counter_check_ins`, `perf_sessions`) plus migrations. Native driver
-  is `better-sqlite3`.
+  `counter_check_ins`) plus migrations. Native driver is
+  `better-sqlite3`.
 - `packages/ui` — shared Tailwind preset, base components, Lottie.
 
 Every API route already scopes queries with `eq(x.userId, user.id)`.

@@ -162,8 +162,7 @@ export function SettingsForm({ initial, isCloud, onSignOut }: Props) {
       <Card className="mt-8 space-y-3 border border-red-500/30 bg-red-500/5">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-red-500">Danger zone</h2>
         <p className="text-sm text-charcoal-soft">
-          Delete your account. This wipes every counter, check-in, and performance session. There is
-          no undo.
+          Delete your account. This wipes every counter and check-in. There is no undo.
         </p>
         <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
           <input

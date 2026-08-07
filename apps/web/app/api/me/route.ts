@@ -105,7 +105,7 @@ export async function PATCH(req: Request) {
 
 /**
  * DELETE /api/me — delete the current user. FK cascades wipe counters,
- * check-ins, perf sessions, adapter accounts, and sessions.
+ * check-ins, adapter accounts, and sessions.
  */
 export async function DELETE() {
   let user: { id: string };
