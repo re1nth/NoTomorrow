@@ -4,6 +4,11 @@ Picks up where [`../web-hosting-plan.md`](../web-hosting-plan.md) §9-11
 leaves off, adjusted for the auth stack that actually shipped
 (email/password + verification, not Google OAuth).
 
+> Note: the initial launch went out on DigitalOcean instead. See
+> [`hosting-digitalocean.md`](./hosting-digitalocean.md) for the
+> runbook we actually followed. This Fly.io plan is retained as an
+> alternative topology.
+
 ## 1. Topology
 
 ```
