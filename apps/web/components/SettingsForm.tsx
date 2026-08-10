@@ -13,14 +13,13 @@ interface Props {
 
 export function SettingsForm({ initial, isCloud, onSignOut }: Props) {
   const router = useRouter();
-  const [handle, setHandle] = useState(initial.handle);
   const [timezone, setTimezone] = useState(initial.timezone);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<{ kind: 'ok' | 'err'; msg: string } | null>(null);
   const [confirmName, setConfirmName] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  const dirty = handle !== initial.handle || timezone !== initial.timezone;
+  const dirty = timezone !== initial.timezone;
   const confirmed = confirmName.trim().toLowerCase() === initial.handle.toLowerCase();
 
   async function save(e: React.FormEvent<HTMLFormElement>) {
@@ -28,8 +27,7 @@ export function SettingsForm({ initial, isCloud, onSignOut }: Props) {
     setStatus(null);
     setSaving(true);
     try {
-      const patch: { handle?: string; timezone?: string } = {};
-      if (handle !== initial.handle) patch.handle = handle.trim();
+      const patch: { timezone?: string } = {};
       if (timezone !== initial.timezone) patch.timezone = timezone.trim();
       const res = await fetch('/api/me', {
         method: 'PATCH',
@@ -87,22 +85,10 @@ export function SettingsForm({ initial, isCloud, onSignOut }: Props) {
       <form onSubmit={save} className="space-y-6">
         <Card className="space-y-4">
           <div className="space-y-2">
-            <label htmlFor="handle" className="block text-sm font-medium text-charcoal">
-              Handle
-            </label>
-            <input
-              id="handle"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              className="w-full rounded-md border border-charcoal/20 bg-canvas px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-glove"
-              autoComplete="off"
-              spellCheck={false}
-              pattern="[a-z0-9_-]+"
-              maxLength={32}
-            />
-            <p className="text-xs text-charcoal-soft">
-              Lowercase letters, digits, hyphens and underscores. Up to 32 characters.
-            </p>
+            <label className="block text-sm font-medium text-charcoal">Handle</label>
+            <div className="w-full rounded-md border border-charcoal/10 bg-canvas/60 px-3 py-2 text-sm text-charcoal-soft">
+              {initial.handle}
+            </div>
           </div>
 
           <div className="space-y-2">

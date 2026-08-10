@@ -1,7 +1,7 @@
 import { UnauthorizedError, requireUserOrTest } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { users } from '@notomorrow/db-sqlite';
-import { and, eq, ne } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -14,24 +14,13 @@ function isValidTimeZone(tz: string): boolean {
   }
 }
 
-// Handles are user-facing identifiers. Keep the character set narrow so
-// URLs and mentions stay predictable.
-const handleSchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(32)
-  .regex(/^[a-z0-9_-]+$/, 'handle can only contain lowercase letters, digits, - and _');
-
 const timezoneSchema = z.string().max(64).refine(isValidTimeZone, 'not a valid IANA timezone');
 
 const patchSchema = z
   .object({
-    handle: handleSchema.optional(),
-    timezone: timezoneSchema.optional(),
+    timezone: timezoneSchema,
   })
-  .strict()
-  .refine((o) => o.handle !== undefined || o.timezone !== undefined, 'nothing to update');
+  .strict();
 
 function unauthorized(err: unknown) {
   if (err instanceof UnauthorizedError) {
@@ -61,7 +50,7 @@ export async function GET() {
 }
 
 /**
- * PATCH /api/me — update handle and/or timezone.
+ * PATCH /api/me — update timezone.
  */
 export async function PATCH(req: Request) {
   let user: { id: string };
@@ -78,19 +67,10 @@ export async function PATCH(req: Request) {
       { status: 400 },
     );
   }
-  const { handle, timezone } = parsed.data;
-  if (handle) {
-    const taken = await db.query.users.findFirst({
-      where: and(eq(users.handle, handle), ne(users.id, user.id)),
-      columns: { id: true },
-    });
-    if (taken) {
-      return NextResponse.json({ error: 'handle already taken' }, { status: 409 });
-    }
-  }
+  const { timezone } = parsed.data;
   const [updated] = await db
     .update(users)
-    .set({ ...(handle ? { handle } : {}), ...(timezone ? { timezone } : {}) })
+    .set({ timezone })
     .where(eq(users.id, user.id))
     .returning();
   if (!updated) {
