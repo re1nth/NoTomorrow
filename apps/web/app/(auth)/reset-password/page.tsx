@@ -42,7 +42,7 @@ export default async function ResetPasswordPage({
         </p>
         <ResetPasswordForm token={token} />
         <p className="text-sm text-white/70">
-          <Link href="/login" className="text-[#E63946] hover:underline">
+          <Link href="/" className="text-[#E63946] hover:underline">
             Back to sign in
           </Link>
         </p>

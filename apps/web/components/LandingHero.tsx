@@ -1,43 +1,42 @@
 'use client';
 
-import { Button } from '@/lib/ui';
 import { motion, useReducedMotion } from 'framer-motion';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { Suspense, useState, type ReactNode } from 'react';
 
 /**
  * Anime-title-card landing hero: pitch-black background, huge red
  * NO TOMORROW wordmark with a slash accent, champion Ippo sprite above.
+ * The CTA area is a slot — pass a button, a sign-in form, whatever fits.
  *
  * `?static=1` (used by the README screenshot capture) and the OS
  * "Reduce Motion" setting both make the page land on its final visual
  * state at first paint.
  */
-export function LandingHero({ ctaHref }: { ctaHref: string }) {
+export function LandingHero({ children }: { children: ReactNode }) {
   return (
     <main className="relative min-h-screen flex items-center justify-center px-6 py-16 overflow-hidden bg-black">
       <TitleCardBackdrop />
-      <Suspense fallback={<HeroBlock staticRender={false} ctaHref={ctaHref} />}>
-        <Hero ctaHref={ctaHref} />
+      <Suspense fallback={<HeroBlock staticRender={false}>{children}</HeroBlock>}>
+        <Hero>{children}</Hero>
       </Suspense>
     </main>
   );
 }
 
-function Hero({ ctaHref }: { ctaHref: string }) {
+function Hero({ children }: { children: ReactNode }) {
   const reduced = useReducedMotion();
   const params = useSearchParams();
   const staticRender = reduced === true || params?.get('static') === '1';
-  return <HeroBlock staticRender={staticRender} ctaHref={ctaHref} />;
+  return <HeroBlock staticRender={staticRender}>{children}</HeroBlock>;
 }
 
 function HeroBlock({
   staticRender,
-  ctaHref,
+  children,
 }: {
   staticRender: boolean;
-  ctaHref: string;
+  children: ReactNode;
 }) {
   const titleProps = staticRender
     ? { initial: { opacity: 1, y: 0, scale: 1 } }
@@ -86,12 +85,8 @@ function HeroBlock({
         />
       </div>
 
-      <motion.div {...ctaProps}>
-        <Link href={ctaHref}>
-          <Button variant="primary" size="lg" className="text-lg md:text-xl px-8 py-4">
-            Step into the ring
-          </Button>
-        </Link>
+      <motion.div {...ctaProps} className="w-full flex flex-col items-center">
+        {children}
       </motion.div>
     </div>
   );

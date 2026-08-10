@@ -11,7 +11,7 @@ export default async function VerifyEmailPage({
 }) {
   const { email } = await searchParams;
   if (!email) {
-    redirect('/login');
+    redirect('/');
   }
 
   return (

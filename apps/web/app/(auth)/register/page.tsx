@@ -68,5 +68,5 @@ function safeNext(next: string | undefined): string {
 
 function loginHref(next: string | undefined): string {
   const safe = safeNext(next);
-  return safe === '/counters' ? '/login' : `/login?next=${encodeURIComponent(safe)}`;
+  return safe === '/counters' ? '/' : `/?next=${encodeURIComponent(safe)}`;
 }

@@ -7,7 +7,7 @@ import { signOut } from '@/lib/nextauth';
 
 async function signOutAction() {
   'use server';
-  await signOut({ redirectTo: '/login' });
+  await signOut({ redirectTo: '/' });
 }
 
 export function SignOutButton() {

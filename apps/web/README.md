@@ -55,8 +55,9 @@ For iterating on the hosted flow without deploying:
    path you set in `.env.local`).
 
 3. `pnpm --filter web dev` and open <http://localhost:3000>. Signed-out
-   requests land on `/login`; click "Create an account" to sign up with
-   email + password, then sign in.
+   visitors see the wordmark hero with the sign-in form inlined below;
+   click "Create an account" to sign up with email + password, then sign
+   in.
 
 ## Environment variables
 

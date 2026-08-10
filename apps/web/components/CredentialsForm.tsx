@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Email + password form shared by /login and /register.
+ * Email + password form shared by the home page (login mode) and /register.
  *
  * Login: hits Auth.js's Credentials callback and pushes the user
  * forward on success. Failed sign-in always shows a generic message
@@ -20,7 +20,7 @@ import { signIn } from 'next-auth/react';
 import { useEffect, useState, useTransition } from 'react';
 
 // zxcvbn + dictionaries are ~700KB — only load them on /register so
-// the /login route stays lean.
+// the login mode on the home page stays lean.
 const PasswordStrengthMeter = dynamic(
   () => import('./PasswordStrengthMeter').then((m) => m.PasswordStrengthMeter),
   { ssr: false },

@@ -297,7 +297,7 @@ sudo systemctl restart notomorrow.service
 Verify the button now renders:
 
 ```bash
-curl -s https://<your-domain>/login | grep -oE 'Continue with Google'
+curl -s https://<your-domain>/ | grep -oE 'Continue with Google'
 ```
 
 ## 8. Smoke test

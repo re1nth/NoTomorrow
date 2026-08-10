@@ -16,7 +16,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     // Cloud: the visitor is signed out — send them to sign in.
     // Local (desktop): the launcher's ensureLocalUser guarantees a row
     // on boot, so a missing user means the SQLite file is broken.
-    if (isCloud) redirect('/login');
+    if (isCloud) redirect('/');
     notFound();
   }
 
