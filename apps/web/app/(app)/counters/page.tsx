@@ -121,6 +121,10 @@ export default function CountersPage() {
     setItems((cs) => [...cs, row]);
     setDraft({ name: '', initialCount: 0 });
     setAdding(false);
+    // Jump to the tab the new thread belongs in so it lands visible even
+    // when the user was viewing a different category (e.g. creating a
+    // Barrage thread with an initial count of 200 while sitting on Warmup).
+    setCategory(categoryFor(beltFor(row.count).current));
   }
 
   async function checkIn(id: string): Promise<boolean> {
