@@ -546,32 +546,36 @@ function StripBlock({
           </span>
         )}
       </div>
-      {/* Month label row — same trick as the card mini-heatmap. */}
-      <div
-        className="relative text-[10px] uppercase tracking-wider text-charcoal-soft mb-1"
-        style={{ height: 14 }}
-      >
-        {strip.monthLabels.map((m) => (
-          <span
-            key={`${m.col}-${m.label}`}
-            className="absolute"
-            style={{
-              left: `calc((100% + 3px) / ${WEEKS_PER_STRIP} * ${m.col})`,
-            }}
+      {/* Fixed cell + gap so cells stay readable at ~13px on any
+          viewport; the wrapper scrolls horizontally when narrower than
+          the grid, keeping the "specific counter horizontally scrollable"
+          contract on mobile. */}
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div style={{ width: WEEKS_PER_STRIP * 13 + (WEEKS_PER_STRIP - 1) * 3 }}>
+          {/* Month label row — same trick as the card mini-heatmap. */}
+          <div
+            className="relative text-[10px] uppercase tracking-wider text-charcoal-soft mb-1"
+            style={{ height: 14 }}
           >
-            {m.label}
-          </span>
-        ))}
-      </div>
-      <div
-        className="grid gap-[3px]"
-        style={{
-          gridTemplateColumns: `repeat(${WEEKS_PER_STRIP}, minmax(0, 1fr))`,
-          gridTemplateRows: 'repeat(7, minmax(0, 1fr))',
-          gridAutoFlow: 'column',
-        }}
-        onMouseLeave={() => setHover(null)}
-      >
+            {strip.monthLabels.map((m) => (
+              <span
+                key={`${m.col}-${m.label}`}
+                className="absolute"
+                style={{ left: m.col * (13 + 3) }}
+              >
+                {m.label}
+              </span>
+            ))}
+          </div>
+          <div
+            className="grid gap-[3px]"
+            style={{
+              gridTemplateColumns: `repeat(${WEEKS_PER_STRIP}, 13px)`,
+              gridTemplateRows: 'repeat(7, 13px)',
+              gridAutoFlow: 'column',
+            }}
+            onMouseLeave={() => setHover(null)}
+          >
         {strip.columns.flatMap((col) =>
           col.map((c) => {
             const isHovered = hover?.iso === c.iso;
@@ -631,6 +635,8 @@ function StripBlock({
             );
           }),
         )}
+          </div>
+        </div>
       </div>
     </section>
   );

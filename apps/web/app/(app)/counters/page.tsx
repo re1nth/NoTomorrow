@@ -568,7 +568,7 @@ function Heatmap({
             : `${days.size} ${days.size === 1 ? 'day' : 'days'}`}
         </span>
       </div>
-      <div>
+      <div className="overflow-x-auto -mx-1 px-1">
         <div className="inline-block" onMouseLeave={() => setHover(null)}>
           {/* Month labels — positioned along the top row of cells. */}
           <div
