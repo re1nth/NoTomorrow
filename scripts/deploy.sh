@@ -42,6 +42,15 @@ step "pnpm install (frozen lockfile)"
 # --frozen-lockfile is a fast no-op if pnpm-lock.yaml didn't change.
 pnpm install --network-concurrency=4 --child-concurrency=2 --frozen-lockfile
 
+step "prune pnpm store"
+# The content-addressable store keeps every version of every package
+# ever installed; on a 10 GB droplet that fills the disk in a handful
+# of deploys and SQLite starts throwing "database or disk is full" on
+# writes. Prune removes packages no longer referenced by any project
+# in this workspace — safe post-install, since --frozen-lockfile has
+# just re-linked everything we still need.
+pnpm store prune
+
 step "apply DB migrations"
 # Read SQLITE_DB_PATH from the env file so we don't hardcode it here.
 DB_PATH=$(grep -E '^SQLITE_DB_PATH=' "$ENV_FILE" | head -1 | cut -d= -f2- || true)
