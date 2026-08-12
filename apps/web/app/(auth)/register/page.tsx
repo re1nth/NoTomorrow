@@ -1,9 +1,9 @@
-import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { CredentialsForm } from '@/components/CredentialsForm';
 import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 import { auth } from '@/lib/nextauth';
 import { hasGoogleOAuth } from '@/lib/oauth-config';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,5 +68,5 @@ function safeNext(next: string | undefined): string {
 
 function loginHref(next: string | undefined): string {
   const safe = safeNext(next);
-  return safe === '/counters' ? '/' : `/?next=${encodeURIComponent(safe)}`;
+  return safe === '/counters' ? '/login' : `/login?next=${encodeURIComponent(safe)}`;
 }

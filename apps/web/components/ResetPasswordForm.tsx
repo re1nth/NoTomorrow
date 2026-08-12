@@ -51,7 +51,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
         setError(body.error ?? 'Reset failed.');
         return;
       }
-      router.push('/?reset=1');
+      router.push('/login?reset=1');
     });
   };
 

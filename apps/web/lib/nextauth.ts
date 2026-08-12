@@ -1,3 +1,4 @@
+import { users } from '@notomorrow/db-sqlite';
 /**
  * Auth.js (v5) instance used by cloud mode. Deliberately isolated in
  * its own module so `NOTOMORROW_AUTH=local` never has to import it —
@@ -11,7 +12,6 @@
  * JWT with the user id and rehydrate it in the session callback.
  */
 import bcrypt from 'bcryptjs';
-import { users } from '@notomorrow/db-sqlite';
 import { eq } from 'drizzle-orm';
 import NextAuth, { CredentialsSignin, type NextAuthConfig } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
@@ -68,7 +68,7 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   providers,
   session: { strategy: 'jwt' },
   pages: {
-    signIn: '/',
+    signIn: '/login',
   },
   callbacks: {
     async jwt({ token, user, account, profile }) {

@@ -1,7 +1,7 @@
-import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { ForgotPasswordForm } from '@/components/ForgotPasswordForm';
 import { auth } from '@/lib/nextauth';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,12 +29,12 @@ export default async function ForgotPasswordPage() {
           style={{ boxShadow: '0 0 18px rgba(230,57,70,0.55)' }}
         />
         <p className="text-sm text-white/70 text-center max-w-sm">
-          Enter your email and we&apos;ll send you a link to choose a new
-          password. The link is valid for 1 hour.
+          Enter your email and we&apos;ll send you a link to choose a new password. The link is
+          valid for 1 hour.
         </p>
         <ForgotPasswordForm />
         <p className="text-sm text-white/70">
-          <Link href="/" className="text-[#E63946] hover:underline">
+          <Link href="/login" className="text-[#E63946] hover:underline">
             Back to sign in
           </Link>
         </p>

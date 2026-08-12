@@ -1,7 +1,7 @@
-import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { ResetPasswordForm } from '@/components/ResetPasswordForm';
 import { auth } from '@/lib/nextauth';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,12 +37,11 @@ export default async function ResetPasswordPage({
           style={{ boxShadow: '0 0 18px rgba(230,57,70,0.55)' }}
         />
         <p className="text-sm text-white/70 text-center max-w-sm">
-          Choose a new password. This link is single-use and expires 1 hour
-          after it was sent.
+          Choose a new password. This link is single-use and expires 1 hour after it was sent.
         </p>
         <ResetPasswordForm token={token} />
         <p className="text-sm text-white/70">
-          <Link href="/" className="text-[#E63946] hover:underline">
+          <Link href="/login" className="text-[#E63946] hover:underline">
             Back to sign in
           </Link>
         </p>
