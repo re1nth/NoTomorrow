@@ -155,6 +155,17 @@ const preset = {
       fontFamily: {
         // Display: punchy, condensed — used for KO, round headers
         display: ['"Bebas Neue"', '"Oswald"', 'Impact', 'sans-serif'],
+        // Brush: chiseled kanji-style face used only for the giant
+        // NO TOMORROW wordmark on the landing + auth pages. Not for body
+        // or nav — stroke weight is too heavy at small sizes.
+        brush: [
+          'var(--font-rampart-one)',
+          '"Rampart One"',
+          '"Reggae One"',
+          '"Bebas Neue"',
+          'Impact',
+          'sans-serif',
+        ],
         // Body: clean sans for readability
         sans: ['"Inter"', '"Helvetica Neue"', 'system-ui', 'sans-serif'],
         // Hand: used for coach bubble copy

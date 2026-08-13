@@ -1,7 +1,18 @@
 import { GoogleAnalytics } from '@/components/GoogleAnalytics';
 import type { Metadata } from 'next';
+import { Rampart_One } from 'next/font/google';
 import type { ReactNode } from 'react';
 import './globals.css';
+
+// Kanji-brush face for the giant NO TOMORROW wordmark. Only wired to
+// the `font-brush` Tailwind utility — see packages/ui/src/tailwind.preset.ts.
+// Self-hosted by next/font so no third-party request on first paint.
+const rampartOne = Rampart_One({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-rampart-one',
+  display: 'swap',
+});
 
 // Public GA4 measurement ID — safe to commit; it's shipped in every
 // rendered page anyway.
@@ -39,7 +50,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={rampartOne.variable}>
       <body className="bg-canvas text-charcoal antialiased selection:bg-sunset-magenta/40 selection:text-charcoal">
         {children}
         {isCloud ? <GoogleAnalytics measurementId={GA_MEASUREMENT_ID} /> : null}
