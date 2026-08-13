@@ -1,6 +1,6 @@
-import { VerifyEmailForm } from '@/components/VerifyEmailForm';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { VerifyEmailForm } from '@/components/VerifyEmailForm';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ export default async function VerifyEmailPage({
     <main className="min-h-screen flex items-center justify-center bg-black px-6 py-16">
       <div className="relative z-10 flex flex-col items-center gap-8 max-w-md w-full">
         <h1
-          className="font-brush text-[#E63946] leading-[0.82] tracking-[0.02em] text-center
+          className="font-display text-[#E63946] leading-[0.82] tracking-[0.02em] text-center
                      text-6xl md:text-7xl
                      drop-shadow-[0_0_30px_rgba(230,57,70,0.35)]"
           style={{ WebkitTextStroke: '1px rgba(0,0,0,0.25)' }}

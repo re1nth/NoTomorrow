@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
-import { type ReactNode, Suspense, useState } from 'react';
+import { Suspense, useState, type ReactNode } from 'react';
 
 /**
  * Anime-title-card landing hero: pitch-black background, huge red
@@ -66,7 +66,7 @@ function HeroBlock({
       <div className="flex flex-col items-center gap-3">
         <motion.h1
           {...titleProps}
-          className="font-brush text-[#E63946] leading-[0.82] tracking-[0.02em] text-center
+          className="font-display text-[#E63946] leading-[0.82] tracking-[0.02em] text-center
                      text-7xl md:text-[10rem]
                      drop-shadow-[0_0_30px_rgba(230,57,70,0.35)]"
           style={{
