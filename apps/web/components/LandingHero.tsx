@@ -74,7 +74,7 @@ function HeroBlock({
           }}
         >
           <span className="block">PLUS</span>
-          <span className="block pl-[0.9em]">ONE</span>
+          <span className="block pl-[0.9em] mt-4 md:mt-6">ONE</span>
         </motion.h1>
 
         <motion.div

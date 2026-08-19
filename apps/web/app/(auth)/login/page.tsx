@@ -35,14 +35,13 @@ export default async function LoginPage({
       <div className="relative z-10 flex flex-col items-center gap-8 max-w-md w-full">
         <Link href="/" className="flex flex-col items-center gap-3">
           <h1
-            className="font-display text-[#E63946] leading-[0.82] tracking-[0.02em] text-center
+            className="font-display text-[#E63946] leading-[0.82] tracking-[0.02em] text-left
                        text-6xl md:text-7xl
                        drop-shadow-[0_0_30px_rgba(230,57,70,0.35)]"
             style={{ WebkitTextStroke: '1px rgba(0,0,0,0.25)' }}
           >
-            NO
-            <br />
-            TOMORROW
+            <span className="block">PLUS</span>
+            <span className="block pl-[0.9em] mt-3 md:mt-4">ONE</span>
           </h1>
           <div
             className="h-1.5 w-40 md:w-56 bg-[#E63946] rounded-sm"
