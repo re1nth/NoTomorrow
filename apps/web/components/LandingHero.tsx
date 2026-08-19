@@ -66,16 +66,15 @@ function HeroBlock({
       <div className="flex flex-col items-center gap-3">
         <motion.h1
           {...titleProps}
-          className="font-display text-[#E63946] leading-[0.82] tracking-[0.02em] text-center
+          className="font-display text-[#E63946] leading-[0.82] tracking-[0.02em] text-left
                      text-7xl md:text-[10rem]
                      drop-shadow-[0_0_30px_rgba(230,57,70,0.35)]"
           style={{
             WebkitTextStroke: '1px rgba(0,0,0,0.25)',
           }}
         >
-          PLUS
-          <br />
-          ONE
+          <span className="block">PLUS</span>
+          <span className="block pl-[0.9em]">ONE</span>
         </motion.h1>
 
         <motion.div

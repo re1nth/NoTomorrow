@@ -35,7 +35,7 @@ async function deliver(msg: Message): Promise<void> {
 export async function sendVerificationCode(email: string, code: string): Promise<void> {
   await deliver({
     to: email,
-    subject: 'Your NoTomorrow verification code',
+    subject: 'Your Plus One verification code',
     body:
       `Your verification code is:\n\n    ${code}\n\n` +
       `It expires in 15 minutes. If you didn't sign up, ignore this email.`,
@@ -45,7 +45,7 @@ export async function sendVerificationCode(email: string, code: string): Promise
 export async function sendPasswordResetLink(email: string, url: string): Promise<void> {
   await deliver({
     to: email,
-    subject: 'Reset your NoTomorrow password',
+    subject: 'Reset your Plus One password',
     body:
       `Click the link below to choose a new password:\n\n    ${url}\n\n` +
       `The link is valid for 1 hour. If you didn't request a reset, ignore this email.`,
