@@ -71,7 +71,7 @@ export function LeftRail({ signOutSlot }: { signOutSlot?: ReactNode }) {
     <>
       {/* Mobile top bar — fixed so it never eats scroll space. */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3 bg-canvas-soft border-b border-charcoal/10">
-        <div className="font-display text-xl tracking-wider">NT</div>
+        <div className="font-display text-xl tracking-wider">+1</div>
         <button
           type="button"
           aria-label={open ? 'Close menu' : 'Open menu'}
@@ -114,7 +114,7 @@ export function LeftRail({ signOutSlot }: { signOutSlot?: ReactNode }) {
         }`}
         aria-hidden={!open}
       >
-        <div className="font-display text-2xl tracking-wider mb-6">NT</div>
+        <div className="font-display text-2xl tracking-wider mb-6">+1</div>
         <nav className="flex flex-col gap-2 flex-1">
           <NavLinks onNavigate={() => setOpen(false)} pathname={pathname} />
         </nav>
@@ -133,7 +133,7 @@ export function LeftRail({ signOutSlot }: { signOutSlot?: ReactNode }) {
           className={`flex items-center mb-4 ${collapsed ? 'justify-center' : 'justify-between'}`}
         >
           {collapsed ? null : (
-            <div className="font-display text-2xl tracking-wider">NT</div>
+            <div className="font-display text-2xl tracking-wider">+1</div>
           )}
           <button
             type="button"

@@ -6,7 +6,7 @@ import { Suspense, useState, type ReactNode } from 'react';
 
 /**
  * Anime-title-card landing hero: pitch-black background, huge red
- * NO TOMORROW wordmark with a slash accent, champion Ippo sprite above.
+ * PLUS ONE wordmark with a slash accent, champion Ippo sprite above.
  * The CTA area is a slot — pass a button, a sign-in form, whatever fits.
  *
  * `?static=1` (used by the README screenshot capture) and the OS
@@ -73,9 +73,9 @@ function HeroBlock({
             WebkitTextStroke: '1px rgba(0,0,0,0.25)',
           }}
         >
-          NO
+          PLUS
           <br />
-          TOMORROW
+          ONE
         </motion.h1>
 
         <motion.div
