@@ -1,6 +1,5 @@
 import { LandingHero } from '@/components/LandingHero';
 import { getUserId } from '@/lib/auth';
-import { Button } from '@/lib/ui';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -20,38 +19,26 @@ export default async function HomePage({
   const uid = await getUserId();
   if (uid) redirect(safeNext(next));
 
-  if (!isCloud) {
-    return (
-      <LandingHero>
-        <Link href="/counters">
-          <Button variant="primary" size="lg" className="text-lg md:text-xl px-8 py-4">
-            Step into the ring
-          </Button>
-        </Link>
-      </LandingHero>
-    );
-  }
-
-  const safe = safeNext(next);
-  const loginHref = safe === '/counters' ? '/login' : `/login?next=${encodeURIComponent(safe)}`;
-  const registerHref =
-    safe === '/counters' ? '/register' : `/register?next=${encodeURIComponent(safe)}`;
+  const href = isCloud
+    ? (() => {
+        const safe = safeNext(next);
+        return safe === '/counters' ? '/login' : `/login?next=${encodeURIComponent(safe)}`;
+      })()
+    : '/counters';
 
   return (
     <LandingHero>
-      <div className="flex flex-col items-center gap-4">
-        <Link href={loginHref}>
-          <Button variant="primary" size="lg" className="text-lg md:text-xl px-8 py-4">
-            Step into the ring
-          </Button>
-        </Link>
-        <p className="text-sm text-white/70">
-          New here?{' '}
-          <Link href={registerHref} className="text-[#E63946] hover:underline">
-            Create an account
-          </Link>
-        </p>
-      </div>
+      <Link href={href}>
+        <button
+          type="button"
+          className="font-display uppercase tracking-wide rounded-glove
+                     bg-glove text-canvas-soft hover:bg-glove-bright active:bg-glove-deep shadow-glove
+                     transition-colors duration-quick ease-out
+                     text-3xl md:text-5xl px-10 md:px-16 py-5 md:py-7"
+        >
+          Step into the ring
+        </button>
+      </Link>
     </LandingHero>
   );
 }
