@@ -126,6 +126,7 @@ NOTOMORROW_AUTH=cloud
 SQLITE_DB_PATH=/home/deploy/notomorrow-data/notomorrow.db
 AUTH_SECRET=<paste-the-openssl-hex>
 AUTH_TRUST_HOST=true
+AUTH_URL=https://<your-domain>
 AUTH_GOOGLE_ID=
 AUTH_GOOGLE_SECRET=
 EOF
@@ -134,13 +135,20 @@ chmod 600 ~/NoTomorrow/apps/web/.env.local
 
 Notes:
 
-- `AUTH_TRUST_HOST=true` is required behind nginx; without it Auth.js
-  rejects requests with an "Untrusted host" error.
+- `AUTH_TRUST_HOST=true` tells Auth.js to trust the `X-Forwarded-*`
+  headers from nginx. Without it Auth.js rejects requests with an
+  "Untrusted host" error.
+- `AUTH_URL=https://<your-domain>` is **also required** in Auth.js v5.
+  Without it, the Google OAuth redirect gets built from the request's
+  internal bind address and Google returns
+  `Error 400: redirect_uri_mismatch` with a `localhost:3000` redirect.
+  `AUTH_TRUST_HOST` alone is not enough — it fixes host validation but
+  not URL generation.
 - The Google lines stay empty until Step 7. The
   `hasGoogleOAuth()` helper in `apps/web/lib/oauth-config.ts` hides
   the button when creds are unset, so the site works end-to-end
   with password auth alone.
-- No `NEXTAUTH_URL` needed with `AUTH_TRUST_HOST=true`.
+- No `NEXTAUTH_URL` needed — that's the Auth.js v4 name.
 
 Build:
 
@@ -156,20 +164,39 @@ NODE_OPTIONS="--max-old-space-size=1024" pnpm --filter web build
 
 ## 5. systemd service
 
+`apps/web/next.config.ts` sets `output: 'standalone'` so the Electron
+desktop app can ship a slim traced-deps bundle (see
+[`stage-web.mjs`](../../apps/desktop/build/stage-web.mjs)). A side
+effect: `next start` no longer serves the built app — it logs
+`"next start" does not work with "output: standalone" configuration`
+and fails on the second request with `upstream prematurely closed
+connection` at nginx. Production must run `node .next/standalone/...`
+directly, with `.next/static` and `public/` staged next to `server.js`
+(the standalone build assumes they're siblings but the tracer doesn't
+copy them).
+
 ```bash
+# Stage static assets alongside server.js
+STANDALONE=~/NoTomorrow/apps/web/.next/standalone/apps/web
+rm -rf $STANDALONE/.next/static $STANDALONE/public
+cp -r ~/NoTomorrow/apps/web/.next/static $STANDALONE/.next/static
+cp -r ~/NoTomorrow/apps/web/public $STANDALONE/public
+
 sudo tee /etc/systemd/system/notomorrow.service > /dev/null <<'EOF'
 [Unit]
-Description=NoTomorrow web (Next.js)
+Description=NoTomorrow web (Next.js standalone)
 After=network.target
 
 [Service]
 Type=simple
 User=deploy
 Group=deploy
-WorkingDirectory=/home/deploy/NoTomorrow/apps/web
+WorkingDirectory=/home/deploy/NoTomorrow/apps/web/.next/standalone/apps/web
 Environment=NODE_ENV=production
-Environment=PATH=/usr/bin:/usr/local/bin
-ExecStart=/usr/bin/pnpm start -- -H 127.0.0.1 -p 3000
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
+EnvironmentFile=/home/deploy/NoTomorrow/apps/web/.env.local
+ExecStart=/usr/bin/node server.js
 Restart=on-failure
 RestartSec=5s
 StandardOutput=journal
@@ -184,9 +211,13 @@ sudo systemctl enable --now notomorrow.service
 sudo journalctl -u notomorrow.service -n 20 --no-pager
 ```
 
-Why the flags on `ExecStart`: `next start` in Next 15 inconsistently
-honors the `HOSTNAME`/`PORT` env vars. Passing `-H 127.0.0.1 -p 3000`
-explicitly binds it to loopback so nginx is the only public face.
+Re-run the `cp -r` staging block on every deploy — a fresh
+`pnpm build` regenerates `.next/standalone/` and wipes the copies.
+`scripts/deploy.sh` does this for you.
+
+Why `HOSTNAME`/`PORT` as `Environment=` and not `ExecStart` args:
+the standalone `server.js` reads them from the environment. No CLI
+flags are accepted.
 
 Verify locally on the droplet:
 
@@ -350,3 +381,22 @@ Wire into cron nightly and rsync to S3/Tigris if data matters.
 - **Google sign-in "Access blocked"** — consent screen is still in
   Testing. Publish it (§7).
 - **`Killed` mid-`pnpm install`** — OOM. Same swap fix as the build.
+- **Google sign-in `Error 400: redirect_uri_mismatch` with
+  `redirect_uri=https://localhost:3000/...`** — `AUTH_URL` isn't set in
+  `.env.local`. Auth.js v5 falls back to `localhost` when it can't
+  derive a canonical URL. Add `AUTH_URL=https://<your-domain>` (§4) and
+  restart the service. `AUTH_TRUST_HOST=true` alone doesn't cover
+  URL generation.
+- **nginx returns `502 Bad Gateway` (log:
+  `upstream prematurely closed connection`) even though `curl 127.0.0.1:3000`
+  returns 200** — Next standalone can't serve because the systemd unit
+  is running `next start` against an `output: 'standalone'` build.
+  Switch `ExecStart` to `/usr/bin/node server.js` and stage
+  `.next/static` + `public/` alongside it (§5).
+- **Site loads fine but half the routes 500 with
+  `TypeError: Invalid URL, input: '\http://\plusonesan.com'`** —
+  literal backslashes leaked into the nginx `proxy_set_header`
+  values via a broken heredoc. `grep proxy_set_header
+  /etc/nginx/sites-available/notomorrow` — the `$` should be bare,
+  not `\$`. Write the config from a local file via `scp` if heredoc
+  escaping keeps biting.

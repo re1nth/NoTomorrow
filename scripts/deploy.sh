@@ -76,6 +76,17 @@ fi
 step "build"
 pnpm --filter web build
 
+step "stage standalone assets"
+# next.config.ts sets output: 'standalone' so systemd runs
+# .next/standalone/apps/web/server.js. The Next tracer copies node_modules
+# but NOT .next/static or public/ — those must sit next to server.js or
+# the standalone server 404s on every asset. Re-run on every deploy: build
+# regenerates .next/standalone/ and wipes any staged copy from last time.
+STANDALONE="$REPO_ROOT/apps/web/.next/standalone/apps/web"
+rm -rf "$STANDALONE/.next/static" "$STANDALONE/public"
+cp -r "$REPO_ROOT/apps/web/.next/static" "$STANDALONE/.next/static"
+cp -r "$REPO_ROOT/apps/web/public" "$STANDALONE/public"
+
 step "restart service"
 sudo systemctl restart "$SERVICE"
 sleep 3
