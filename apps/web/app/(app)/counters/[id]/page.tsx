@@ -2,17 +2,12 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
 import { beltFor, categoryFor, todayLocal } from '../belts';
 
-interface CounterRow {
-  id: string;
-  name: string;
-  count: number;
-  lastCheckIn: string | null;
-  createdAt: string;
-}
+const EMPTY_DAYS: Set<string> = new Set();
 
 /**
  * Per-counter detail — vertically stacked year-strips, each in the same
@@ -20,47 +15,22 @@ interface CounterRow {
  * ends on this week; each strip below tiles 53 weeks further into the
  * past. Always renders at least one full-year strip, and keeps stacking
  * until it reaches the counter's earliest signal.
+ *
+ * Reads the counter and its history from the shared store — no per-mount
+ * fetch — so navigating in from /counters (or back out to Pomodoro and
+ * returning) reuses the data already in memory.
  */
 export default function CounterDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
-  const [counter, setCounter] = useState<CounterRow | null>(null);
-  const [days, setDays] = useState<Set<string>>(() => new Set());
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { items, histories, loading, error } = useCounters();
+  const counter = id ? (items.find((c) => c.id === id) ?? null) : null;
+  const days = id ? (histories[id] ?? EMPTY_DAYS) : EMPTY_DAYS;
 
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    async function load() {
-      try {
-        const [cRes, hRes] = await Promise.all([
-          fetch(`/api/counters/${id}`, { cache: 'no-store' }),
-          fetch(`/api/counters/${id}/history`, { cache: 'no-store' }),
-        ]);
-        if (!cRes.ok) throw new Error(`Counter fetch failed: ${cRes.status}`);
-        if (!hRes.ok) throw new Error(`History fetch failed: ${hRes.status}`);
-        const cJson = (await cRes.json()) as CounterRow;
-        const hJson = (await hRes.json()) as { days: string[] };
-        if (cancelled) return;
-        setCounter(cJson);
-        setDays(new Set(hJson.days));
-      } catch (err) {
-        if (!cancelled) setError((err as Error).message);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  if (loading) {
+  if (loading && !counter) {
     return <p className="text-sm text-charcoal-soft">Loading…</p>;
   }
-  if (error || !counter) {
+  if (!counter) {
     return (
       <div className="max-w-2xl mx-auto">
         <p className="text-sm text-glove-deep">{error ?? 'Counter not found.'}</p>
@@ -71,21 +41,7 @@ export default function CounterDetailPage() {
     );
   }
 
-  return (
-    <DetailBody
-      counter={counter}
-      days={days}
-      onRenamed={(name) => setCounter((c) => (c ? { ...c, name } : c))}
-      onBackfilled={(day, updated) => {
-        setCounter(updated);
-        setDays((prev) => {
-          const next = new Set(prev);
-          next.add(day);
-          return next;
-        });
-      }}
-    />
-  );
+  return <DetailBody counter={counter} days={days} />;
 }
 
 const WEEKS_PER_STRIP = 53;
@@ -93,14 +49,11 @@ const WEEKS_PER_STRIP = 53;
 function DetailBody({
   counter,
   days,
-  onRenamed,
-  onBackfilled,
 }: {
   counter: CounterRow;
   days: Set<string>;
-  onRenamed: (name: string) => void;
-  onBackfilled: (day: string, updated: CounterRow) => void;
 }) {
+  const { checkIn, error: storeError } = useCounters();
   const { current } = beltFor(counter.count);
   const today = todayLocal();
   const strips = useMemo(
@@ -113,29 +66,15 @@ function DetailBody({
   // strips can be armed at a time.
   const [armed, setArmed] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const [flashDay, setFlashDay] = useState<string | null>(null);
 
   async function confirm() {
     if (!armed || submitting) return;
     setSubmitting(true);
-    setErr(null);
     try {
-      const res = await fetch(`/api/counters/${counter.id}/checkin`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ day: armed }),
-      });
-      const body = (await res.json().catch(() => null)) as
-        | (CounterRow & { error?: undefined })
-        | { error: string }
-        | null;
-      if (!res.ok) {
-        setErr((body && 'error' in body && body.error) || `Backfill failed: ${res.status}`);
-        return;
-      }
       const day = armed;
-      onBackfilled(day, body as CounterRow);
+      const row = await checkIn(counter.id, day);
+      if (!row) return;
       setFlashDay(day);
       setTimeout(() => setFlashDay((v) => (v === day ? null : v)), 900);
       setArmed(null);
@@ -155,7 +94,7 @@ function DetailBody({
 
       <header className="mt-3 mb-2 flex items-start justify-between gap-6">
         <div>
-          <EditableName counter={counter} onRenamed={onRenamed} />
+          <EditableName counter={counter} />
           <div className="flex items-center gap-3 mt-2">
             <span
               className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] uppercase tracking-wider font-display"
@@ -189,7 +128,7 @@ function DetailBody({
         Missed a day? Tap an empty square on the grid to backfill it.
       </p>
 
-      {err ? <p className="mb-4 text-sm text-glove-deep">{err}</p> : null}
+      {storeError ? <p className="mb-4 text-sm text-glove-deep">{storeError}</p> : null}
 
       <div className="space-y-10">
         {strips.map((s) => (
@@ -213,21 +152,14 @@ function DetailBody({
   );
 }
 
-function EditableName({
-  counter,
-  onRenamed,
-}: {
-  counter: CounterRow;
-  onRenamed: (name: string) => void;
-}) {
+function EditableName({ counter }: { counter: CounterRow }) {
+  const { renameCounter } = useCounters();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(counter.name);
   const [saving, setSaving] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   function beginEdit() {
     setDraft(counter.name);
-    setErr(null);
     setEditing(true);
   }
 
@@ -238,21 +170,11 @@ function EditableName({
       return;
     }
     setSaving(true);
-    setErr(null);
     try {
-      const res = await fetch(`/api/counters/${counter.id}`, {
-        method: 'PATCH',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ name: next }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? `Rename failed: ${res.status}`);
-      }
-      onRenamed(next);
-      setEditing(false);
-    } catch (e) {
-      setErr((e as Error).message);
+      const row = await renameCounter(counter.id, next);
+      // On failure the store surfaces the error above the strip block —
+      // keep the input open so the user can retry or Escape.
+      if (row) setEditing(false);
     } finally {
       setSaving(false);
     }
@@ -283,16 +205,12 @@ function EditableName({
         onChange={(e) => setDraft(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') void save();
-          if (e.key === 'Escape') {
-            setEditing(false);
-            setErr(null);
-          }
+          if (e.key === 'Escape') setEditing(false);
         }}
         onBlur={() => void save()}
         disabled={saving}
         className="font-display text-4xl tracking-wider bg-transparent border-b border-charcoal/30 focus:border-charcoal focus:outline-none w-full max-w-xl"
       />
-      {err ? <p className="text-sm text-glove-deep mt-2">{err}</p> : null}
     </div>
   );
 }
@@ -304,23 +222,16 @@ function EditableName({
  */
 function DangerZone({ counter }: { counter: CounterRow }) {
   const router = useRouter();
+  const { deleteCounter, error: storeError } = useCounters();
   const [typed, setTyped] = useState('');
   const [pending, setPending] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
   const armed = typed.trim().toLowerCase() === counter.name.trim().toLowerCase();
 
   async function del() {
-    setErr(null);
     setPending(true);
     try {
-      const res = await fetch(`/api/counters/${counter.id}`, { method: 'DELETE' });
-      if (!res.ok) {
-        setErr(`Delete failed: ${res.status}`);
-        return;
-      }
-      router.push('/counters');
-    } catch (e) {
-      setErr((e as Error).message);
+      const ok = await deleteCounter(counter.id);
+      if (ok) router.push('/counters');
     } finally {
       setPending(false);
     }
@@ -352,7 +263,7 @@ function DangerZone({ counter }: { counter: CounterRow }) {
             className="w-full rounded-glove border border-charcoal/20 bg-canvas px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-glove"
           />
         </label>
-        {err ? <p className="text-sm text-glove-deep mb-3">{err}</p> : null}
+        {storeError ? <p className="text-sm text-glove-deep mb-3">{storeError}</p> : null}
         <Button
           variant="primary"
           size="lg"

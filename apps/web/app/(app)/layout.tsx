@@ -1,3 +1,4 @@
+import { CountersProvider } from '@/components/CountersStore';
 import { LeftRail } from '@/components/LeftRail';
 import { SignOutButton } from '@/components/SignOutButton';
 import { getUserId } from '@/lib/auth';
@@ -22,11 +23,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="h-screen flex overflow-hidden">
-      <LeftRail signOutSlot={isCloud ? <SignOutButton /> : null} />
-      {/* pt-20 on mobile clears the fixed hamburger bar; md+ uses the
-          normal padding since the desktop rail sits in-flow. */}
-      <main className="flex-1 min-w-0 px-6 pb-6 pt-20 md:pt-6 overflow-y-auto">{children}</main>
-    </div>
+    <CountersProvider>
+      <div className="h-screen flex overflow-hidden">
+        <LeftRail signOutSlot={isCloud ? <SignOutButton /> : null} />
+        {/* pt-20 on mobile clears the fixed hamburger bar; md+ uses the
+            normal padding since the desktop rail sits in-flow. */}
+        <main className="flex-1 min-w-0 px-6 pb-6 pt-20 md:pt-6 overflow-y-auto">{children}</main>
+      </div>
+    </CountersProvider>
   );
 }

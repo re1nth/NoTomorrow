@@ -3,23 +3,25 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { SectionTitle } from '@/components/SectionTitle';
+import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
-import { beltFor, CATEGORIES, type Category, categoryFor, todayLocal } from './belts';
+import { beltFor, CATEGORIES, type Category, categoryFor } from './belts';
 
-interface CounterRow {
-  id: string;
-  name: string;
-  count: number;
-  lastCheckIn: string | null;
-  createdAt: string;
-}
+// Stable empty set so cards without a loaded history don't churn Heatmap memo.
+const EMPTY_HISTORY: Set<string> = new Set();
 
 export default function CountersPage() {
-  const [items, setItems] = useState<CounterRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    items,
+    histories,
+    loading,
+    error,
+    today,
+    addCounter,
+    checkIn,
+  } = useCounters();
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: '', initialCount: 0 });
   const [pulsing, setPulsing] = useState<string | null>(null);
@@ -41,84 +43,13 @@ export default function CountersPage() {
     },
     [router, searchParams],
   );
-  // `today` in state so a mount that survives midnight (or a laptop resume
-  // from sleep) still re-enables "+1 today" without a page reload.
-  const [today, setToday] = useState(todayLocal);
 
-  useEffect(() => {
-    void refresh();
-  }, []);
-
-  // Fire once at the next local midnight, then reschedule daily. Also
-  // re-checks on tab focus / visibility resume so a wake-from-sleep
-  // catches up even if the timer was throttled.
-  useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
-    function schedule() {
-      const now = new Date();
-      const nextMidnight = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate() + 1,
-        0,
-        0,
-        5, // 5s past midnight so any TZ rounding lands on the new day
-      );
-      const ms = Math.max(1000, nextMidnight.getTime() - now.getTime());
-      timer = setTimeout(() => {
-        setToday(todayLocal());
-        void refresh();
-        schedule();
-      }, ms);
-    }
-    function catchUp() {
-      const now = todayLocal();
-      setToday((prev) => {
-        if (prev !== now) void refresh();
-        return now;
-      });
-    }
-    schedule();
-    document.addEventListener('visibilitychange', catchUp);
-    window.addEventListener('focus', catchUp);
-    return () => {
-      if (timer) clearTimeout(timer);
-      document.removeEventListener('visibilitychange', catchUp);
-      window.removeEventListener('focus', catchUp);
-    };
-  }, []);
-
-  async function refresh() {
-    setError(null);
-    try {
-      const res = await fetch('/api/counters', { cache: 'no-store' });
-      if (!res.ok) throw new Error(`Load failed: ${res.status}`);
-      const json = (await res.json()) as { counters: CounterRow[] };
-      setItems(json.counters);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function addCounter(e: React.FormEvent<HTMLFormElement>) {
+  async function onSubmitAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
     const name = draft.name.trim();
     if (!name) return;
-    const res = await fetch('/api/counters', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name, initialCount: draft.initialCount }),
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { error?: string } | null;
-      setError(body?.error ?? `Create failed: ${res.status}`);
-      return;
-    }
-    const row = (await res.json()) as CounterRow;
-    setItems((cs) => [...cs, row]);
+    const row = await addCounter({ name, initialCount: draft.initialCount });
+    if (!row) return;
     setDraft({ name: '', initialCount: 0 });
     setAdding(false);
     // Jump to the tab the new thread belongs in so it lands visible even
@@ -127,21 +58,9 @@ export default function CountersPage() {
     setCategory(categoryFor(beltFor(row.count).current));
   }
 
-  async function checkIn(id: string): Promise<boolean> {
-    setError(null);
-    const res = await fetch(`/api/counters/${id}/checkin`, { method: 'POST' });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as
-        | { error?: string; counter?: CounterRow }
-        | null;
-      setError(body?.error ?? `Check-in failed: ${res.status}`);
-      if (body?.counter) {
-        setItems((cs) => cs.map((c) => (c.id === id ? body.counter! : c)));
-      }
-      return false;
-    }
-    const row = (await res.json()) as CounterRow;
-    setItems((cs) => cs.map((c) => (c.id === id ? row : c)));
+  async function handleCheckIn(id: string): Promise<boolean> {
+    const row = await checkIn(id);
+    if (!row) return false;
     setPulsing(id);
     setTimeout(() => setPulsing((p) => (p === id ? null : p)), 900);
     return true;
@@ -170,7 +89,7 @@ export default function CountersPage() {
             className="overflow-hidden mb-6"
           >
             <Card tone="glove">
-              <form onSubmit={addCounter} className="grid grid-cols-[1fr_140px_auto] gap-3 items-end">
+              <form onSubmit={onSubmitAdd} className="grid grid-cols-[1fr_140px_auto] gap-3 items-end">
                 <label className="block text-sm">
                   <span className="block mb-1 uppercase tracking-wider text-xs">Thread name</span>
                   <input
@@ -237,9 +156,10 @@ export default function CountersPage() {
                     <CounterCard
                       key={c.id}
                       counter={c}
+                      history={histories[c.id]}
                       pulsing={pulsing === c.id}
                       today={today}
-                      onCheckIn={() => checkIn(c.id)}
+                      onCheckIn={() => handleCheckIn(c.id)}
                     />
                   ))}
               </AnimatePresence>
@@ -312,11 +232,13 @@ function CategoryTabs({
 
 function CounterCard({
   counter,
+  history,
   pulsing,
   today,
   onCheckIn,
 }: {
   counter: CounterRow;
+  history: Set<string> | undefined;
   pulsing: boolean;
   today: string;
   onCheckIn: () => Promise<boolean>;
@@ -324,33 +246,10 @@ function CounterCard({
   const { current, next, progress } = beltFor(counter.count);
   const checkedToday = counter.lastCheckIn === today;
   const pct = Math.round(progress * 100);
-
-  const [history, setHistory] = useState<Set<string>>(() => new Set());
-  const refreshHistory = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/counters/${counter.id}/history`, {
-        cache: 'no-store',
-      });
-      if (!res.ok) return;
-      const json = (await res.json()) as { days: string[] };
-      setHistory(new Set(json.days));
-    } catch {
-      // Heatmap is non-critical; swallow and keep the card usable.
-    }
-  }, [counter.id]);
-  useEffect(() => {
-    void refreshHistory();
-  }, [refreshHistory]);
+  const days = history ?? EMPTY_HISTORY;
 
   async function handleCheckIn() {
-    const ok = await onCheckIn();
-    if (ok) {
-      setHistory((prev) => {
-        const next = new Set(prev);
-        next.add(today);
-        return next;
-      });
-    }
+    await onCheckIn();
   }
 
   return (
@@ -481,7 +380,7 @@ function CounterCard({
           </motion.div>
         </div>
 
-        <Heatmap days={history} today={today} fillHex={current.hex} />
+        <Heatmap days={days} today={today} fillHex={current.hex} />
       </Card>
     </motion.div>
   );
