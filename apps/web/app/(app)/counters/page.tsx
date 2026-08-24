@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { SectionTitle } from '@/components/SectionTitle';
 import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
@@ -11,6 +11,9 @@ import { beltFor, CATEGORIES, type Category, categoryFor } from './belts';
 
 // Stable empty set so cards without a loaded history don't churn Heatmap memo.
 const EMPTY_HISTORY: Set<string> = new Set();
+
+type View = 'expanded' | 'compact';
+const VIEW_STORAGE_KEY = 'counters:view';
 
 export default function CountersPage() {
   const {
@@ -25,6 +28,28 @@ export default function CountersPage() {
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: '', initialCount: 0 });
   const [pulsing, setPulsing] = useState<string | null>(null);
+  // View mode persists across reloads. Start expanded to avoid a hydration
+  // mismatch, then read localStorage on mount and adopt the stored value.
+  const [view, setView] = useState<View>('expanded');
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      if (stored === 'compact' || stored === 'expanded') setView(stored);
+    } catch {
+      // localStorage blocked (private mode, etc.) — leave default.
+    }
+  }, []);
+  const toggleView = useCallback(() => {
+    setView((v) => {
+      const next: View = v === 'compact' ? 'expanded' : 'compact';
+      try {
+        window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+      } catch {
+        // Non-fatal — user gets a session-only toggle.
+      }
+      return next;
+    });
+  }, []);
   // Category lives in the URL so returning from a counter detail page lands
   // on the belt-appropriate tab; local state alone would be preserved across
   // App Router soft navigations and ignore the ?category= hint.
@@ -72,9 +97,12 @@ export default function CountersPage() {
         title="Counters"
         subtitle="One thread, one punch a day. Don't break the chain."
         right={
-          <Button onClick={() => setAdding((v) => !v)} variant={adding ? 'ghost' : 'primary'}>
-            {adding ? 'Cancel' : '+ New thread'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <ViewToggle view={view} onToggle={toggleView} />
+            <Button onClick={() => setAdding((v) => !v)} variant={adding ? 'ghost' : 'primary'}>
+              {adding ? 'Cancel' : '+ New thread'}
+            </Button>
+          </div>
         }
       />
 
@@ -147,21 +175,38 @@ export default function CountersPage() {
               </p>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 gap-5 max-w-[896px] mx-auto">
+            <div
+              className={
+                view === 'compact'
+                  ? 'grid gap-3 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]'
+                  : 'grid grid-cols-1 gap-5 max-w-[896px] mx-auto'
+              }
+            >
               <AnimatePresence initial={false}>
                 {items
                   .filter((c) => categoryFor(beltFor(c.count).current) === category)
                   .sort((a, b) => b.count - a.count)
-                  .map((c) => (
-                    <CounterCard
-                      key={c.id}
-                      counter={c}
-                      history={histories[c.id]}
-                      pulsing={pulsing === c.id}
-                      today={today}
-                      onCheckIn={() => handleCheckIn(c.id)}
-                    />
-                  ))}
+                  .map((c) =>
+                    view === 'compact' ? (
+                      <CompactCounterCard
+                        key={c.id}
+                        counter={c}
+                        history={histories[c.id]}
+                        pulsing={pulsing === c.id}
+                        today={today}
+                        onCheckIn={() => handleCheckIn(c.id)}
+                      />
+                    ) : (
+                      <CounterCard
+                        key={c.id}
+                        counter={c}
+                        history={histories[c.id]}
+                        pulsing={pulsing === c.id}
+                        today={today}
+                        onCheckIn={() => handleCheckIn(c.id)}
+                      />
+                    ),
+                  )}
               </AnimatePresence>
               {items.every((c) => categoryFor(beltFor(c.count).current) !== category) ? (
                 <Card tone="default" className="text-center py-10">
@@ -541,5 +586,251 @@ function BeltBadge({ belt }: { belt: { name: string; hex: string; ink: string } 
     >
       <span aria-hidden>●</span> {belt.name} belt
     </span>
+  );
+}
+
+function ViewToggle({ view, onToggle }: { view: View; onToggle: () => void }) {
+  const isCompact = view === 'compact';
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      title={isCompact ? 'Switch to expanded view' : 'Switch to compact view'}
+      aria-label={isCompact ? 'Switch to expanded view' : 'Switch to compact view'}
+      aria-pressed={isCompact}
+      className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-charcoal/20 bg-canvas-soft text-charcoal-soft hover:text-charcoal hover:border-charcoal/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glove"
+    >
+      {isCompact ? (
+        // "Rows" icon → clicking returns to expanded stacked view.
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" role="img">
+          <title>Rows</title>
+          <rect x="2" y="3" width="12" height="3" rx="1" fill="currentColor" />
+          <rect x="2" y="10" width="12" height="3" rx="1" fill="currentColor" />
+        </svg>
+      ) : (
+        // "Grid" icon → clicking condenses to compact grid.
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" role="img">
+          <title>Grid</title>
+          <rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor" />
+          <rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor" />
+          <rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor" />
+          <rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+function CompactCounterCard({
+  counter,
+  history,
+  pulsing,
+  today,
+  onCheckIn,
+}: {
+  counter: CounterRow;
+  history: Set<string> | undefined;
+  pulsing: boolean;
+  today: string;
+  onCheckIn: () => Promise<boolean>;
+}) {
+  const { current, next, progress } = beltFor(counter.count);
+  const checkedToday = counter.lastCheckIn === today;
+  const pct = Math.round(progress * 100);
+  const days = history ?? EMPTY_HISTORY;
+
+  async function handleCheckIn() {
+    await onCheckIn();
+  }
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10, scale: 0.96 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.94, transition: { duration: 0.18 } }}
+      whileHover={{ y: -2, scale: 1.01 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+      className="relative"
+    >
+      <Card tone="default" className="relative overflow-hidden">
+        <motion.div
+          aria-hidden
+          className="absolute -top-8 -right-8 w-32 h-32 rounded-full blur-2xl opacity-30 pointer-events-none"
+          style={{ backgroundColor: current.hex }}
+          animate={pulsing ? { opacity: [0.3, 0.85, 0.3], scale: [1, 1.25, 1] } : { opacity: 0.3 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+        />
+        <motion.img
+          aria-hidden
+          src={current.sticker}
+          alt=""
+          draggable={false}
+          className="absolute right-2 top-2 pointer-events-none select-none"
+          style={{
+            height: 56,
+            width: 'auto',
+            imageRendering: 'pixelated',
+            filter: 'drop-shadow(0 2px 5px rgba(0,0,0,0.28))',
+          }}
+          initial={false}
+          animate={
+            pulsing
+              ? { scale: [1, 1.14, 1], rotate: [0, -3, 3, 0] }
+              : { scale: 1, rotate: 0 }
+          }
+          transition={{ duration: 0.7, ease: 'easeOut' }}
+        />
+
+        <div className="pr-14 min-w-0">
+          <Link
+            href={`/counters/${counter.id}`}
+            className="font-display text-base tracking-wider truncate block hover:text-glove transition-colors"
+          >
+            {counter.name}
+          </Link>
+          <BeltBadge belt={current} />
+        </div>
+
+        <div className="mt-2 leading-none flex items-baseline gap-2">
+          <AnimatePresence mode="popLayout">
+            <motion.span
+              key={counter.count}
+              initial={{ y: 10, opacity: 0, scale: 0.9 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: -10, opacity: 0, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 460, damping: 24 }}
+              className="font-display text-4xl tabular-nums"
+            >
+              {counter.count}
+            </motion.span>
+          </AnimatePresence>
+          <span className="uppercase tracking-wider text-[10px] text-charcoal-soft">
+            days
+          </span>
+        </div>
+
+        <div className="mt-3 h-1.5 rounded-full bg-charcoal/10 overflow-hidden">
+          <motion.div
+            className="h-full rounded-full"
+            style={{ backgroundColor: current.hex }}
+            initial={false}
+            animate={{ width: `${pct}%` }}
+            transition={{ type: 'spring', stiffness: 180, damping: 28 }}
+          />
+        </div>
+        <div className="flex justify-between text-[9px] uppercase tracking-wider text-charcoal-soft mt-1">
+          <span>{next ? `Next: ${next.name}` : 'Top tier'}</span>
+          <span>{next ? `${next.threshold - counter.count} to go` : '∞'}</span>
+        </div>
+
+        <MiniHeatmap days={days} today={today} fillHex={current.hex} />
+
+        <motion.div whileTap={{ scale: 0.94 }} whileHover={{ scale: 1.02 }} className="mt-3">
+          <Button
+            onClick={handleCheckIn}
+            variant={checkedToday ? 'ghost' : 'primary'}
+            size="sm"
+            block
+            disabled={checkedToday}
+          >
+            {checkedToday ? '✓ Done today' : '+1 today'}
+          </Button>
+        </motion.div>
+      </Card>
+    </motion.div>
+  );
+}
+
+/**
+ * 5-week × 7-day mini heatmap — same anchoring as Heatmap but sized to fit
+ * inside a compact card. No month labels, no hover state, tooltip-only.
+ */
+function MiniHeatmap({
+  days,
+  today,
+  fillHex,
+}: {
+  days: Set<string>;
+  today: string;
+  fillHex: string;
+}) {
+  const WEEKS = 5;
+  const columns = useMemo(() => {
+    const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+    const anchor = new Date(y, m - 1, d);
+    const todayDow = anchor.getDay();
+    const lastSunday = new Date(anchor);
+    lastSunday.setDate(anchor.getDate() - todayDow);
+    const start = new Date(lastSunday);
+    start.setDate(lastSunday.getDate() - (WEEKS - 1) * 7);
+    const cols: { day: string; inFuture: boolean }[][] = [];
+    for (let w = 0; w < WEEKS; w++) {
+      const col: { day: string; inFuture: boolean }[] = [];
+      for (let r = 0; r < 7; r++) {
+        const cell = new Date(start);
+        cell.setDate(start.getDate() + w * 7 + r);
+        const iso = `${cell.getFullYear()}-${String(cell.getMonth() + 1).padStart(2, '0')}-${String(cell.getDate()).padStart(2, '0')}`;
+        col.push({ day: iso, inFuture: cell.getTime() > anchor.getTime() });
+      }
+      cols.push(col);
+    }
+    return cols;
+  }, [today]);
+
+  const CELL = 10;
+  const GAP = 2;
+  const filledCount = days.size;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-charcoal/10">
+      <div className="flex items-baseline justify-between mb-1.5">
+        <span className="uppercase tracking-wider text-[9px] text-charcoal-soft">
+          Last 30 days
+        </span>
+        <span className="text-[9px] text-charcoal-soft tabular-nums">
+          {filledCount} {filledCount === 1 ? 'day' : 'days'}
+        </span>
+      </div>
+      <div
+        className="grid mx-auto"
+        style={{
+          gridTemplateColumns: `repeat(${WEEKS}, ${CELL}px)`,
+          columnGap: GAP,
+          rowGap: GAP,
+          gridAutoFlow: 'column',
+          gridTemplateRows: `repeat(7, ${CELL}px)`,
+          width: WEEKS * (CELL + GAP) - GAP,
+        }}
+      >
+        {columns.flatMap((col) =>
+          col.map((cell) => {
+            const filled = days.has(cell.day);
+            const isToday = cell.day === today;
+            return (
+              <div
+                key={cell.day}
+                title={
+                  cell.inFuture ? cell.day : `${cell.day}${filled ? ' — checked in' : ''}`
+                }
+                className="rounded-[2px]"
+                style={{
+                  width: CELL,
+                  height: CELL,
+                  backgroundColor: cell.inFuture
+                    ? 'transparent'
+                    : filled
+                      ? fillHex
+                      : 'rgba(234, 228, 214, 0.10)',
+                  outline: isToday ? '1px solid rgba(234, 228, 214, 0.55)' : 'none',
+                  outlineOffset: 1,
+                  opacity: cell.inFuture ? 0 : 1,
+                }}
+              />
+            );
+          }),
+        )}
+      </div>
+    </div>
   );
 }
