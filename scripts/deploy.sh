@@ -36,6 +36,17 @@ if [ "$before" = "$after" ]; then
 else
   echo "$before → $after"
   git log --oneline "$before..$after" | sed 's/^/  /'
+  # If the pull rewrote this script, bash is still reading the old bytes by
+  # offset — the next steps can be skipped, duplicated, or run against a
+  # half-old / half-new file. Re-exec against the new script contents. The
+  # sentinel prevents infinite recursion; the re-execed run pulls again
+  # (no-op, same HEAD), sees no change, and continues.
+  if [ -z "${NT_DEPLOY_REEXEC:-}" ] && \
+     git diff --name-only "$before" "$after" | grep -qx 'scripts/deploy.sh'; then
+    echo "  scripts/deploy.sh changed in this pull — re-execing"
+    export NT_DEPLOY_REEXEC=1
+    exec bash "$0" "$@"
+  fi
 fi
 
 step "pnpm install (frozen lockfile)"
