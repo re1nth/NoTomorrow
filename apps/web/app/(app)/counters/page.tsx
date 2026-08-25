@@ -182,7 +182,14 @@ export default function CountersPage() {
                   : 'grid grid-cols-1 gap-5 max-w-[896px] mx-auto'
               }
             >
-              <AnimatePresence initial={false}>
+              {/*
+                popLayout pulls exiting cards out of the grid flow (they go
+                position: absolute for the exit animation) so entering cards
+                for the new category snap to cells 1, 2, … immediately
+                instead of being pushed to cells N+1, N+2 while the previous
+                tab's cards animate out.
+              */}
+              <AnimatePresence initial={false} mode="popLayout">
                 {items
                   .filter((c) => categoryFor(beltFor(c.count).current) === category)
                   .sort((a, b) => b.count - a.count)
