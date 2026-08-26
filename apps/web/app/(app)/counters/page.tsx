@@ -702,22 +702,42 @@ function CompactCounterCard({
           <BeltBadge belt={current} />
         </div>
 
-        <div className="mt-2 leading-none flex items-baseline gap-2">
-          <AnimatePresence mode="popLayout">
-            <motion.span
-              key={counter.count}
-              initial={{ y: 10, opacity: 0, scale: 0.9 }}
-              animate={{ y: 0, opacity: 1, scale: 1 }}
-              exit={{ y: -10, opacity: 0, scale: 0.9 }}
-              transition={{ type: 'spring', stiffness: 460, damping: 24 }}
-              className="font-display text-4xl tabular-nums"
-            >
-              {counter.count}
-            </motion.span>
-          </AnimatePresence>
-          <span className="uppercase tracking-wider text-[10px] text-charcoal-soft">
-            days
-          </span>
+        <div className="mt-2 leading-none flex items-baseline justify-between gap-2">
+          <div className="flex items-baseline gap-2 min-w-0">
+            <AnimatePresence mode="popLayout">
+              <motion.span
+                key={counter.count}
+                initial={{ y: 10, opacity: 0, scale: 0.9 }}
+                animate={{ y: 0, opacity: 1, scale: 1 }}
+                exit={{ y: -10, opacity: 0, scale: 0.9 }}
+                transition={{ type: 'spring', stiffness: 460, damping: 24 }}
+                className="font-display text-4xl tabular-nums"
+              >
+                {counter.count}
+              </motion.span>
+            </AnimatePresence>
+            <span className="uppercase tracking-wider text-[10px] text-charcoal-soft">
+              days
+            </span>
+          </div>
+          {/* Compact +1 pill — inline with the count row, saves a full
+              button-row of vertical space vs. the block variant. */}
+          <motion.button
+            type="button"
+            onClick={handleCheckIn}
+            disabled={checkedToday}
+            whileTap={checkedToday ? undefined : { scale: 0.92 }}
+            whileHover={checkedToday ? undefined : { scale: 1.05 }}
+            aria-label={checkedToday ? 'Already checked in today' : 'Check in for today'}
+            title={checkedToday ? 'Done for today' : '+1 today'}
+            className={
+              checkedToday
+                ? 'inline-flex items-center justify-center h-8 min-w-[52px] px-3 rounded-full text-[13px] font-display uppercase tracking-wider bg-transparent text-charcoal-soft border border-charcoal/20 cursor-not-allowed'
+                : 'inline-flex items-center justify-center h-8 min-w-[52px] px-3.5 rounded-full text-[13px] font-display uppercase tracking-wider bg-glove text-canvas-soft shadow-glove hover:bg-glove-bright active:bg-glove-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glove focus-visible:ring-offset-2 focus-visible:ring-offset-canvas transition-colors'
+            }
+          >
+            {checkedToday ? '✓' : '+1'}
+          </motion.button>
         </div>
 
         <div className="mt-3 h-1.5 rounded-full bg-charcoal/10 overflow-hidden">
@@ -735,18 +755,6 @@ function CompactCounterCard({
         </div>
 
         <MiniHeatmap days={days} today={today} fillHex={current.hex} />
-
-        <motion.div whileTap={{ scale: 0.94 }} whileHover={{ scale: 1.02 }} className="mt-3">
-          <Button
-            onClick={handleCheckIn}
-            variant={checkedToday ? 'ghost' : 'primary'}
-            size="sm"
-            block
-            disabled={checkedToday}
-          >
-            {checkedToday ? '✓ Done today' : '+1 today'}
-          </Button>
-        </motion.div>
       </Card>
     </motion.div>
   );
