@@ -176,6 +176,7 @@ export default function CountersPage() {
             </Card>
           ) : (
             <div
+              key={`${view}:${category}`}
               className={
                 view === 'compact'
                   ? 'grid gap-3 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]'
@@ -183,11 +184,13 @@ export default function CountersPage() {
               }
             >
               {/*
-                popLayout pulls exiting cards out of the grid flow (they go
-                position: absolute for the exit animation) so entering cards
-                for the new category snap to cells 1, 2, … immediately
-                instead of being pushed to cells N+1, N+2 while the previous
-                tab's cards animate out.
+                Grid is keyed by view+category so switching tabs (or toggling
+                compact/expanded) unmounts the previous list entirely and the
+                new one mounts fresh. Without the key, motion.div's `layout`
+                prop on cards would preserve their prior cell positions across
+                the tab change and the entering cards would land in cells
+                where the leaving cards used to sit — leaving huge gaps for
+                any tab with fewer cards than the last.
               */}
               <AnimatePresence initial={false} mode="popLayout">
                 {items
