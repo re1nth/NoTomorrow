@@ -3,12 +3,20 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState, type ReactNode, type SVGProps } from 'react';
+import { usePomodoro } from '@/components/PomodoroStore';
 
 type NavLink = {
   href: string;
   label: string;
   Icon: (props: SVGProps<SVGSVGElement>) => ReactNode;
 };
+
+function formatMMSS(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
 
 const links: readonly NavLink[] = [
   { href: '/counters', label: 'Counters', Icon: CountersIcon },
@@ -167,10 +175,16 @@ function NavLinks({
   pathname: string | null;
   collapsed?: boolean;
 }) {
+  // Read the pomodoro store here so the chip re-renders on every tick without
+  // pulling the whole rail into the timer's render cycle when idle.
+  const { mode, remainingMs } = usePomodoro();
+  const timerRunning = mode === 'running';
+
   return (
     <>
       {links.map((l) => {
         const active = pathname === l.href || pathname?.startsWith(`${l.href}/`);
+        const showTimerChip = l.href === '/pomodoro' && timerRunning && !collapsed;
         return (
           <Link
             key={l.href}
@@ -185,7 +199,23 @@ function NavLinks({
             }`}
           >
             <l.Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
-            {collapsed ? null : <span>{l.label}</span>}
+            {collapsed ? null : (
+              <>
+                <span>{l.label}</span>
+                {showTimerChip ? (
+                  <span
+                    className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-glove/10 text-glove text-[10px] tabular-nums normal-case tracking-normal"
+                    aria-label={`Pomodoro running, ${formatMMSS(remainingMs)} remaining`}
+                  >
+                    <span
+                      aria-hidden
+                      className="w-1.5 h-1.5 rounded-full bg-glove animate-pulse"
+                    />
+                    {formatMMSS(remainingMs)}
+                  </span>
+                ) : null}
+              </>
+            )}
           </Link>
         );
       })}
