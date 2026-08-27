@@ -11,7 +11,7 @@ export const BELTS = [
   { name: 'Green', threshold: 90, hex: '#5DAA5E', ink: '#0B0908', sticker: '/stickers/green.png' },
   { name: 'Blue', threshold: 180, hex: '#5479C2', ink: '#EAE4D6', sticker: '/stickers/blue.png' },
   { name: 'Brown', threshold: 365, hex: '#7A4B2A', ink: '#EAE4D6', sticker: '/stickers/brown.png' },
-  { name: 'Black', threshold: 720, hex: '#0B0908', ink: '#EAE4D6', sticker: '/stickers/black.png' },
+  { name: 'Black', threshold: 720, hex: '#2A2622', ink: '#EAE4D6', sticker: '/stickers/black.png' },
   { name: 'Black II', threshold: 1095, hex: '#2A1F3D', ink: '#EAE4D6', sticker: '/stickers/black-ii.png' },
   { name: 'Black III', threshold: 1825, hex: '#4B1E55', ink: '#EAE4D6', sticker: '/stickers/black-iii.png' },
   { name: 'Champion', threshold: 3650, hex: '#B73E63', ink: '#EAE4D6', sticker: '/stickers/champion.png' },
