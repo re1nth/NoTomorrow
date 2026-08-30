@@ -34,7 +34,7 @@ export default async function HomePage({
           className="font-display uppercase tracking-wide rounded-glove
                      bg-glove text-canvas-soft hover:bg-glove-bright active:bg-glove-deep shadow-glove
                      transition-colors duration-quick ease-out
-                     text-3xl md:text-5xl px-10 md:px-16 py-5 md:py-7"
+                     text-2xl md:text-4xl px-10 md:px-16 py-5 md:py-7"
         >
           Step into the ring
         </button>
