@@ -82,7 +82,8 @@ export function ProfileForm({ initial, isCloud, onSignOut }: Props) {
         subtitle="Your profile lives on this device — or, in cloud mode, in your account."
       />
 
-      <div className="max-w-2xl">
+      <div className="mx-auto max-w-5xl">
+        <div className="max-w-2xl">
       <form onSubmit={save} className="space-y-6">
         <Card className="space-y-4">
           <div className="space-y-2">
@@ -171,6 +172,7 @@ export function ProfileForm({ initial, isCloud, onSignOut }: Props) {
           </Button>
         </div>
       </Card>
+        </div>
       </div>
     </>
   );
