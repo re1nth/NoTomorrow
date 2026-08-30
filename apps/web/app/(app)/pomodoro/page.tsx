@@ -51,7 +51,7 @@ export default function PomodoroPage() {
     mode === 'idle' && customInput === '' ? Math.round(totalMs / 60_000) : null;
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <>
       <SectionTitle
         title="Pomodoro"
         subtitle="One bell, one round. Don't look away till it rings."
@@ -166,6 +166,6 @@ export default function PomodoroPage() {
           </div>
         </Card>
       </div>
-    </div>
+    </>
   );
 }

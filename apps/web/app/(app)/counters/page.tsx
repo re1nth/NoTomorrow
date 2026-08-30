@@ -92,7 +92,7 @@ export default function CountersPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <>
       <SectionTitle
         title="Counters"
         subtitle="One thread, one punch a day. Don't break the chain."
@@ -106,6 +106,7 @@ export default function CountersPage() {
         }
       />
 
+      <div className="max-w-5xl mx-auto">
       <AnimatePresence initial={false}>
         {adding ? (
           <motion.div
@@ -230,7 +231,8 @@ export default function CountersPage() {
           )}
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
