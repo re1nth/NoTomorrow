@@ -51,7 +51,7 @@ export function useCounters(): CountersStore {
  * Session-scoped store for the counters + per-counter check-in histories.
  *
  * Lives in the (app) shell so it survives soft navigation between /counters,
- * /pomodoro, and /settings — the list + histories are fetched once on mount
+ * /pomodoro, and /profile — the list + histories are fetched once on mount
  * and then updated in-place from mutation responses. Revalidates only on
  * local-midnight rollover and on tab focus / visibility to catch wake-from-
  * sleep or check-ins from another tab.

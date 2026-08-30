@@ -1,4 +1,4 @@
-import { SettingsForm } from '@/components/SettingsForm';
+import { ProfileForm } from '@/components/ProfileForm';
 import { requireUser } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { users } from '@notomorrow/db-sqlite';
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 const isCloud = process.env.NOTOMORROW_AUTH === 'cloud';
 
-export default async function SettingsPage() {
+export default async function ProfilePage() {
   const user = await requireUser();
   const row = await db.query.users.findFirst({
     where: eq(users.id, user.id),
@@ -28,7 +28,7 @@ export default async function SettingsPage() {
     : null;
 
   return (
-    <SettingsForm
+    <ProfileForm
       initial={{
         id: row.id,
         handle: row.handle,

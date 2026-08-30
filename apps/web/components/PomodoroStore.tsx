@@ -80,7 +80,7 @@ export function usePomodoro(): PomodoroStore {
 
 /**
  * Session-scoped timer that lives in the (app) shell so switching between
- * /counters, /pomodoro, and /settings doesn't unmount the tick loop.
+ * /counters, /pomodoro, and /profile doesn't unmount the tick loop.
  *
  * The tick is driven off a wall-clock `endsAt` timestamp so a throttled
  * background browser tab still lands on the correct end time when it

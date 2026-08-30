@@ -11,7 +11,7 @@ interface Props {
   onSignOut: (() => Promise<void>) | null;
 }
 
-export function SettingsForm({ initial, isCloud, onSignOut }: Props) {
+export function ProfileForm({ initial, isCloud, onSignOut }: Props) {
   const router = useRouter();
   const [timezone, setTimezone] = useState(initial.timezone);
   const [saving, setSaving] = useState(false);
@@ -78,7 +78,7 @@ export function SettingsForm({ initial, isCloud, onSignOut }: Props) {
   return (
     <div className="max-w-2xl">
       <SectionTitle
-        title="Settings"
+        title="Profile"
         subtitle="Your profile lives on this device — or, in cloud mode, in your account."
       />
 
