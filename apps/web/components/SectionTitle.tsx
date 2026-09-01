@@ -68,7 +68,11 @@ export function SectionTitle({
         <ellipse cx="1000" cy="175" rx="90" ry="60" fill={`url(#${glowId}-tail)`} />
       </svg>
       <div className="relative mx-auto max-w-5xl px-6 pt-10 pb-8">
-        <div className="flex items-start justify-between gap-4">
+        {/* Stack the right slot below the title on narrow viewports — the
+            header has overflow-hidden and the right slot is shrink-0, so
+            fitting them side-by-side on a 375px phone slices the CTA off
+            the right edge. sm:+ keeps the original inline layout. */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1
               className="font-display uppercase tracking-wider text-4xl md:text-5xl leading-none text-[#E63946] drop-shadow-[0_0_28px_rgba(230,57,70,0.55)]"
@@ -82,7 +86,7 @@ export function SectionTitle({
             />
             {subtitle ? <p className="mt-3 text-sm text-charcoal-soft">{subtitle}</p> : null}
           </div>
-          {right ? <div className="shrink-0">{right}</div> : null}
+          {right ? <div className="sm:shrink-0">{right}</div> : null}
         </div>
       </div>
     </header>
