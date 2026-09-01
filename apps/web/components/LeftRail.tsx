@@ -37,7 +37,11 @@ const COLLAPSED_KEY = 'nt:leftRail:collapsed';
  * so this component can stay a client component without touching the
  * server-only `signOut` import.
  */
-export function LeftRail({ signOutSlot }: { signOutSlot?: ReactNode }) {
+export function LeftRail({
+  signOutAction,
+}: {
+  signOutAction: (() => Promise<void>) | null;
+}) {
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
@@ -126,8 +130,10 @@ export function LeftRail({ signOutSlot }: { signOutSlot?: ReactNode }) {
         <nav className="flex flex-col gap-2 flex-1">
           <NavLinks onNavigate={() => setOpen(false)} pathname={pathname} />
         </nav>
-        {signOutSlot ? (
-          <div className="pt-4 border-t border-charcoal/10">{signOutSlot}</div>
+        {signOutAction ? (
+          <div className="pt-4 border-t border-charcoal/10">
+            <SignOutRow action={signOutAction} collapsed={false} />
+          </div>
         ) : null}
       </aside>
 
@@ -158,11 +164,41 @@ export function LeftRail({ signOutSlot }: { signOutSlot?: ReactNode }) {
         <nav className="flex flex-col gap-2 flex-1 w-full">
           <NavLinks pathname={pathname} collapsed={collapsed} />
         </nav>
-        {signOutSlot && !collapsed ? (
-          <div className="pt-4 border-t border-charcoal/10 w-full">{signOutSlot}</div>
+        {signOutAction ? (
+          <div
+            className={`w-full ${
+              collapsed ? 'mt-4 flex justify-center' : 'pt-4 border-t border-charcoal/10'
+            }`}
+          >
+            <SignOutRow action={signOutAction} collapsed={collapsed} />
+          </div>
         ) : null}
       </aside>
     </>
+  );
+}
+
+function SignOutRow({
+  action,
+  collapsed,
+}: {
+  action: () => Promise<void>;
+  collapsed: boolean;
+}) {
+  return (
+    <form action={action} className={collapsed ? undefined : 'w-full'}>
+      <button
+        type="submit"
+        aria-label="Sign out"
+        title={collapsed ? 'Sign out' : undefined}
+        className={`flex items-center gap-3 rounded-md text-sm font-display uppercase tracking-wider text-charcoal/60 hover:text-glove transition-colors ${
+          collapsed ? 'justify-center h-10 w-10' : 'px-1 py-1 w-full'
+        }`}
+      >
+        <SignOutIcon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+        {collapsed ? null : <span>Sign out</span>}
+      </button>
+    </form>
   );
 }
 
@@ -272,6 +308,24 @@ function ProfileIcon(props: SVGProps<SVGSVGElement>) {
     >
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+    </svg>
+  );
+}
+
+function SignOutIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
   );
 }
