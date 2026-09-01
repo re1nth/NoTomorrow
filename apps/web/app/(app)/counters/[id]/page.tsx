@@ -231,7 +231,13 @@ function DangerZone({ counter }: { counter: CounterRow }) {
     setPending(true);
     try {
       const ok = await deleteCounter(counter.id);
-      if (ok) router.push('/counters');
+      if (ok) {
+        // Land on the tab the deleted counter belonged to, not the
+        // Warmup default — same pattern the "back" link at the top
+        // of the page uses for its href.
+        const category = categoryFor(beltFor(counter.count).current);
+        router.push(`/counters?category=${category}`);
+      }
     } finally {
       setPending(false);
     }
