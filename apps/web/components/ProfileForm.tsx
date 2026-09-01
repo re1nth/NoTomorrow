@@ -104,50 +104,59 @@ export function ProfileForm({ initial, isCloud, onSignOut }: Props) {
       <div className="mx-auto max-w-5xl">
         <div className="max-w-2xl">
       <form onSubmit={save} className="space-y-6">
-        <Card className="space-y-4">
-          <HandleField initialHandle={initial.handle} />
-
-          <div className="space-y-2">
-            <label htmlFor="timezone" className="block text-sm font-medium text-charcoal">
-              Timezone
-            </label>
-            <div className="flex gap-2">
-              <input
-                id="timezone"
-                value={timezone}
-                onChange={(e) => setTimezone(e.target.value)}
-                className="flex-1 rounded-md border border-charcoal/20 bg-canvas px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-glove"
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="Europe/London"
-              />
-              <Button type="button" variant="secondary" onClick={detectBrowserTz}>
-                Detect
+        <Card
+          footer={
+            <div className="flex items-center gap-3">
+              <Button type="submit" variant="primary" disabled={!dirty || saving}>
+                {saving ? 'Saving…' : 'Save'}
               </Button>
+              {status ? (
+                <span
+                  className={
+                    status.kind === 'ok' ? 'text-sm text-emerald-600' : 'text-sm text-red-500'
+                  }
+                >
+                  {status.msg}
+                </span>
+              ) : null}
             </div>
-            <p className="text-xs text-charcoal-soft">
-              IANA name. Controls which day &ldquo;+1 today&rdquo; counts toward.
-            </p>
-          </div>
+          }
+        >
+          {/* space-y-6 gives each field real breathing room; the Card's
+              built-in footer border separates the Save action from the
+              field stack so the whole card reads as fields → action
+              instead of a flat list of rows. */}
+          <div className="space-y-6">
+            <HandleField initialHandle={initial.handle} />
 
-          {initial.email ? (
-            <div className="text-xs text-charcoal-soft">
-              Signed in as <span className="font-medium text-charcoal">{initial.email}</span>
+            <div className="space-y-2">
+              <label htmlFor="timezone" className="block text-sm font-medium text-charcoal">
+                Timezone
+              </label>
+              <div className="flex gap-2">
+                <input
+                  id="timezone"
+                  value={timezone}
+                  onChange={(e) => setTimezone(e.target.value)}
+                  className="flex-1 rounded-md border border-charcoal/20 bg-canvas px-3 py-2 text-sm text-charcoal focus:outline-none focus:ring-2 focus:ring-glove"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="Europe/London"
+                />
+                <Button type="button" variant="secondary" onClick={detectBrowserTz}>
+                  Detect
+                </Button>
+              </div>
+              <p className="text-xs text-charcoal-soft">
+                IANA name. Controls which day &ldquo;+1 today&rdquo; counts toward.
+              </p>
             </div>
-          ) : null}
 
-          <div className="flex items-center gap-3">
-            <Button type="submit" variant="primary" disabled={!dirty || saving}>
-              {saving ? 'Saving…' : 'Save'}
-            </Button>
-            {status ? (
-              <span
-                className={
-                  status.kind === 'ok' ? 'text-sm text-emerald-600' : 'text-sm text-red-500'
-                }
-              >
-                {status.msg}
-              </span>
+            {initial.email ? (
+              <div className="text-xs text-charcoal-soft">
+                Signed in as{' '}
+                <span className="font-medium text-charcoal">{initial.email}</span>
+              </div>
             ) : null}
           </div>
         </Card>
