@@ -26,7 +26,13 @@ export default function CountersPage() {
     checkIn,
   } = useCounters();
   const [adding, setAdding] = useState(false);
-  const [draft, setDraft] = useState({ name: '', initialCount: 0 });
+  // initialCount is a string so an empty field is representable — a number
+  // typed as 0 by default would mean deleting the "0" fires an onChange
+  // that parses back to 0 and re-fills the input, blocking edit.
+  const [draft, setDraft] = useState<{ name: string; initialCount: string }>({
+    name: '',
+    initialCount: '',
+  });
   const [pulsing, setPulsing] = useState<string | null>(null);
   // View mode persists across reloads. Start expanded to avoid a hydration
   // mismatch, then read localStorage on mount and adopt the stored value.
@@ -73,9 +79,11 @@ export default function CountersPage() {
     e.preventDefault();
     const name = draft.name.trim();
     if (!name) return;
-    const row = await addCounter({ name, initialCount: draft.initialCount });
+    const parsed = Number.parseInt(draft.initialCount, 10);
+    const initialCount = Number.isFinite(parsed) ? Math.max(0, Math.min(100000, parsed)) : 0;
+    const row = await addCounter({ name, initialCount });
     if (!row) return;
-    setDraft({ name: '', initialCount: 0 });
+    setDraft({ name: '', initialCount: '' });
     setAdding(false);
     // Jump to the tab the new thread belongs in so it lands visible even
     // when the user was viewing a different category (e.g. creating a
@@ -118,7 +126,13 @@ export default function CountersPage() {
             className="overflow-hidden mb-6"
           >
             <Card tone="glove">
-              <form onSubmit={onSubmitAdd} className="grid grid-cols-[1fr_140px_auto] gap-3 items-end">
+              {/* Single column on mobile so the two inputs + Create don't
+                  cram into a phone-width row; sm:+ restores the original
+                  3-col grid layout. */}
+              <form
+                onSubmit={onSubmitAdd}
+                className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_140px_auto] sm:items-end"
+              >
                 <label className="block text-sm">
                   <span className="block mb-1 uppercase tracking-wider text-xs">Thread name</span>
                   <input
@@ -135,12 +149,12 @@ export default function CountersPage() {
                   <span className="block mb-1 uppercase tracking-wider text-xs">Starting count</span>
                   <input
                     type="number"
+                    inputMode="numeric"
                     min={0}
                     max={100000}
                     value={draft.initialCount}
-                    onChange={(e) =>
-                      setDraft((d) => ({ ...d, initialCount: Math.max(0, Number(e.target.value) || 0) }))
-                    }
+                    onChange={(e) => setDraft((d) => ({ ...d, initialCount: e.target.value }))}
+                    placeholder="0"
                     className="w-full rounded-glove border border-charcoal/20 bg-canvas-soft px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-glove"
                   />
                 </label>
