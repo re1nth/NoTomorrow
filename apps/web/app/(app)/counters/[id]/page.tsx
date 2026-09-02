@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
 import { beltFor, categoryFor, todayLocal } from '../belts';
@@ -427,6 +427,16 @@ function StripBlock({
   // Armed cell is a strip-local concern only if this strip contains it —
   // the confirm prompt is contextual to the row you clicked.
   const armedHere = armed !== null && strip.columns.some((col) => col.some((c) => c.iso === armed));
+
+  // Anchor the strip's horizontal scroll on its rightmost (most recent)
+  // column on mount so the user lands on the latest activity in this
+  // strip's range instead of the oldest.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, []);
+
   return (
     <section>
       <div className="flex items-baseline justify-between gap-3 mb-2 min-h-[18px]">
@@ -467,7 +477,7 @@ function StripBlock({
           viewport; the wrapper scrolls horizontally when narrower than
           the grid, keeping the "specific counter horizontally scrollable"
           contract on mobile. */}
-      <div className="overflow-x-auto -mx-1 px-1">
+      <div ref={scrollRef} className="overflow-x-auto -mx-1 px-1">
         <div style={{ width: WEEKS_PER_STRIP * 13 + (WEEKS_PER_STRIP - 1) * 3 }}>
           {/* Month label row — same trick as the card mini-heatmap. */}
           <div

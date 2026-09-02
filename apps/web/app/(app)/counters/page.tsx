@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SectionTitle } from '@/components/SectionTitle';
 import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
@@ -524,6 +524,16 @@ function Heatmap({
   const CELL = 13;
   const GAP = 3;
 
+  // Anchor the scroll to "this week" (rightmost column) on mount so the
+  // user lands on their most recent check-ins instead of a year-old
+  // Sunday. Re-runs on `today` change (e.g. midnight rollover) to keep
+  // the anchor on the current week.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [today]);
+
   return (
     <div className="mt-5 border-t border-charcoal/10 pt-4">
       <div className="flex items-baseline justify-between mb-2">
@@ -538,7 +548,7 @@ function Heatmap({
             : `${days.size} ${days.size === 1 ? 'day' : 'days'}`}
         </span>
       </div>
-      <div className="overflow-x-auto -mx-1 px-1">
+      <div ref={scrollRef} className="overflow-x-auto -mx-1 px-1">
         <div className="inline-block" onMouseLeave={() => setHover(null)}>
           {/* Month labels — positioned along the top row of cells. */}
           <div
