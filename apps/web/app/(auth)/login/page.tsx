@@ -1,6 +1,18 @@
-import { GoogleSignInButton } from '@/components/GoogleSignInButton';
+import {
+  FacebookGlyph,
+  GitHubGlyph,
+  GoogleGlyph,
+  MicrosoftGlyph,
+  OAuthSignInButton,
+} from '@/components/OAuthSignInButton';
 import { getUserId } from '@/lib/auth';
-import { hasGoogleOAuth } from '@/lib/oauth-config';
+import {
+  hasAnyOAuth,
+  hasFacebookOAuth,
+  hasGitHubOAuth,
+  hasGoogleOAuth,
+  hasMicrosoftOAuth,
+} from '@/lib/oauth-config';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
@@ -19,7 +31,6 @@ export default async function LoginPage({
   if (uid) redirect(safeNext(next));
 
   const safe = safeNext(next);
-  const googleEnabled = hasGoogleOAuth();
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-black px-6 py-16">
@@ -39,15 +50,37 @@ export default async function LoginPage({
             style={{ boxShadow: '0 0 18px rgba(230,57,70,0.55)' }}
           />
         </Link>
-        <div className="flex flex-col items-center gap-5 w-full max-w-sm">
-          {googleEnabled ? (
-            <GoogleSignInButton next={safe} />
-          ) : (
+        <div className="flex flex-col items-center gap-3 w-full max-w-sm">
+          {hasGoogleOAuth() ? (
+            <OAuthSignInButton provider="google" label="Continue with Google" next={safe}>
+              <GoogleGlyph />
+            </OAuthSignInButton>
+          ) : null}
+          {hasGitHubOAuth() ? (
+            <OAuthSignInButton provider="github" label="Continue with GitHub" next={safe}>
+              <GitHubGlyph />
+            </OAuthSignInButton>
+          ) : null}
+          {hasMicrosoftOAuth() ? (
+            <OAuthSignInButton
+              provider="microsoft-entra-id"
+              label="Continue with Microsoft"
+              next={safe}
+            >
+              <MicrosoftGlyph />
+            </OAuthSignInButton>
+          ) : null}
+          {hasFacebookOAuth() ? (
+            <OAuthSignInButton provider="facebook" label="Continue with Facebook" next={safe}>
+              <FacebookGlyph />
+            </OAuthSignInButton>
+          ) : null}
+          {!hasAnyOAuth() ? (
             <p className="text-sm text-white/70 text-center">
-              Sign-in is temporarily unavailable — Google OAuth is not configured on this
+              Sign-in is temporarily unavailable — no OAuth providers are configured on this
               deployment.
             </p>
-          )}
+          ) : null}
         </div>
       </div>
     </main>
