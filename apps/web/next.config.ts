@@ -38,6 +38,16 @@ const nextConfig: NextConfig = {
     // Biome is the linter at the repo root; skip next-lint.
     ignoreDuringBuilds: true,
   },
+  // Bookmarks and outbound links from the retired email/password flow
+  // land on /login now that Google is the only sign-in method.
+  async redirects() {
+    return [
+      { source: '/register', destination: '/login', permanent: true },
+      { source: '/forgot-password', destination: '/login', permanent: true },
+      { source: '/reset-password', destination: '/login', permanent: true },
+      { source: '/verify-email', destination: '/login', permanent: true },
+    ];
+  },
   webpack: (config) => {
     config.resolve = config.resolve ?? {};
     config.resolve.extensionAlias = {

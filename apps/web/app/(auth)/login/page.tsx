@@ -1,4 +1,3 @@
-import { CredentialsForm } from '@/components/CredentialsForm';
 import { GoogleSignInButton } from '@/components/GoogleSignInButton';
 import { getUserId } from '@/lib/auth';
 import { hasGoogleOAuth } from '@/lib/oauth-config';
@@ -7,28 +6,20 @@ import { redirect } from 'next/navigation';
 
 // Kept out of `/` so the landing page renders no credential inputs —
 // browser reputation classifiers (Safe Browsing) flag a bare domain
-// whose root is an email/password form as phishing-shaped.
+// whose root is a sign-in form as phishing-shaped.
 export const dynamic = 'force-dynamic';
 
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string; verified?: string; reset?: string }>;
+  searchParams: Promise<{ next?: string }>;
 }) {
-  const { next, verified, reset } = await searchParams;
+  const { next } = await searchParams;
   const uid = await getUserId();
   if (uid) redirect(safeNext(next));
 
-  const flash =
-    verified === '1'
-      ? 'Email verified — sign in to continue.'
-      : reset === '1'
-        ? 'Password reset — sign in with your new password.'
-        : null;
-  const googleEnabled = hasGoogleOAuth();
   const safe = safeNext(next);
-  const registerHref =
-    safe === '/counters' ? '/register' : `/register?next=${encodeURIComponent(safe)}`;
+  const googleEnabled = hasGoogleOAuth();
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-black px-6 py-16">
@@ -50,27 +41,13 @@ export default async function LoginPage({
         </Link>
         <div className="flex flex-col items-center gap-5 w-full max-w-sm">
           {googleEnabled ? (
-            <>
-              <GoogleSignInButton next={safe} />
-              <div className="flex items-center gap-3 w-full text-xs uppercase tracking-wider text-white/40">
-                <div className="flex-1 h-px bg-white/15" />
-                or
-                <div className="flex-1 h-px bg-white/15" />
-              </div>
-            </>
-          ) : null}
-          <CredentialsForm mode="login" next={safe} initialFlash={flash} />
-          <div className="text-sm text-white/70 flex flex-col items-center gap-1.5">
-            <Link href="/forgot-password" className="text-[#E63946] hover:underline">
-              Forgot password?
-            </Link>
-            <p>
-              New here?{' '}
-              <Link href={registerHref} className="text-[#E63946] hover:underline">
-                Create an account
-              </Link>
+            <GoogleSignInButton next={safe} />
+          ) : (
+            <p className="text-sm text-white/70 text-center">
+              Sign-in is temporarily unavailable — Google OAuth is not configured on this
+              deployment.
             </p>
-          </div>
+          )}
         </div>
       </div>
     </main>
