@@ -4,6 +4,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { EasterEgg } from '@/components/EasterEgg';
+import { useEasterAccess } from '@/components/EasterAccessProvider';
 import { SectionTitle } from '@/components/SectionTitle';
 import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
@@ -33,6 +35,7 @@ export default function CountersPage() {
     name: '',
     initialCount: '',
   });
+
   const [pulsing, setPulsing] = useState<string | null>(null);
   // View mode persists across reloads. Start expanded to avoid a hydration
   // mismatch, then read localStorage on mount and adopt the stored value.
@@ -61,6 +64,7 @@ export default function CountersPage() {
   // App Router soft navigations and ignore the ?category= hint.
   const router = useRouter();
   const searchParams = useSearchParams();
+  const easterEnabled = useEasterAccess();
   const rawCategory = searchParams?.get('category');
   const category: Category =
     rawCategory === 'Hanging' || rawCategory === 'Barrage' || rawCategory === 'Warmup'
@@ -101,6 +105,7 @@ export default function CountersPage() {
 
   return (
     <>
+      {easterEnabled ? <EasterEgg /> : null}
       <SectionTitle
         title="Counters"
         subtitle="One thread, one punch a day. Don't break the chain."

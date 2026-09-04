@@ -1,7 +1,12 @@
 import { CountersProvider } from '@/components/CountersStore';
+import { EasterAccessProvider } from '@/components/EasterAccessProvider';
 import { LeftRail } from '@/components/LeftRail';
 import { PomodoroProvider } from '@/components/PomodoroStore';
 import { getUserId } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { hasEasterAccess } from '@/lib/easter-access';
+import { users } from '@notomorrow/db-sqlite';
+import { eq } from 'drizzle-orm';
 import { notFound, redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 
@@ -34,16 +39,27 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       }
     : null;
 
+  // Server-side feature-flag check. Only a boolean crosses the RSC
+  // boundary; the hashing logic in lib/easter-access.ts never ships to
+  // the client.
+  const row = await db.query.users.findFirst({
+    where: eq(users.id, uid),
+    columns: { email: true },
+  });
+  const easterEnabled = hasEasterAccess(row?.email);
+
   return (
-    <CountersProvider>
-      <PomodoroProvider>
-        <div className="h-screen flex overflow-hidden">
-          <LeftRail signOutAction={signOutAction} />
-          {/* pt-20 on mobile clears the fixed hamburger bar; md+ uses the
-              normal padding since the desktop rail sits in-flow. */}
-          <main className="flex-1 min-w-0 px-6 pb-6 pt-20 md:pt-6 overflow-y-auto">{children}</main>
-        </div>
-      </PomodoroProvider>
-    </CountersProvider>
+    <EasterAccessProvider enabled={easterEnabled}>
+      <CountersProvider>
+        <PomodoroProvider>
+          <div className="h-screen flex overflow-hidden">
+            <LeftRail signOutAction={signOutAction} />
+            {/* pt-20 on mobile clears the fixed hamburger bar; md+ uses the
+                normal padding since the desktop rail sits in-flow. */}
+            <main className="flex-1 min-w-0 px-6 pb-6 pt-20 md:pt-6 overflow-y-auto">{children}</main>
+          </div>
+        </PomodoroProvider>
+      </CountersProvider>
+    </EasterAccessProvider>
   );
 }
