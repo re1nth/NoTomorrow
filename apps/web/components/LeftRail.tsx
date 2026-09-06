@@ -26,6 +26,10 @@ const links: readonly NavLink[] = [
 
 const COLLAPSED_KEY = 'nt:leftRail:collapsed';
 
+// Public GitHub repo — surfaced in the rail so anyone using the app can
+// find their way to the source and contribute.
+const REPO_URL = 'https://github.com/re1nth/NoTomorrow';
+
 /**
  * App shell navigation.
  *
@@ -130,8 +134,11 @@ export function LeftRail({
         <nav className="flex flex-col gap-2 flex-1">
           <NavLinks onNavigate={() => setOpen(false)} pathname={pathname} />
         </nav>
+        <div className="pt-4 border-t border-charcoal/10">
+          <GitHubRow collapsed={false} />
+        </div>
         {signOutAction ? (
-          <div className="pt-4 border-t border-charcoal/10">
+          <div className="pt-4">
             <SignOutRow action={signOutAction} collapsed={false} />
           </div>
         ) : null}
@@ -164,17 +171,40 @@ export function LeftRail({
         <nav className="flex flex-col gap-2 flex-1 w-full">
           <NavLinks pathname={pathname} collapsed={collapsed} />
         </nav>
+        <div
+          className={`w-full ${
+            collapsed ? 'mt-4 flex justify-center' : 'pt-4 border-t border-charcoal/10'
+          }`}
+        >
+          <GitHubRow collapsed={collapsed} />
+        </div>
         {signOutAction ? (
           <div
-            className={`w-full ${
-              collapsed ? 'mt-4 flex justify-center' : 'pt-4 border-t border-charcoal/10'
-            }`}
+            className={`w-full ${collapsed ? 'mt-3 flex justify-center' : 'pt-3'}`}
           >
             <SignOutRow action={signOutAction} collapsed={collapsed} />
           </div>
         ) : null}
       </aside>
     </>
+  );
+}
+
+function GitHubRow({ collapsed }: { collapsed: boolean }) {
+  return (
+    <a
+      href={REPO_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Contribute on GitHub"
+      title={collapsed ? 'Contribute on GitHub' : undefined}
+      className={`flex items-center gap-3 rounded-md text-sm font-display uppercase tracking-wider text-charcoal/60 hover:text-glove transition-colors ${
+        collapsed ? 'justify-center h-10 w-10' : 'px-1 py-1 w-full'
+      }`}
+    >
+      <GitHubIcon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+      {collapsed ? null : <span>GitHub</span>}
+    </a>
   );
 }
 
@@ -308,6 +338,14 @@ function ProfileIcon(props: SVGProps<SVGSVGElement>) {
     >
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />
+    </svg>
+  );
+}
+
+function GitHubIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...props} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 .5C5.73.5.67 5.56.67 11.83c0 5.02 3.25 9.28 7.77 10.79.57.1.78-.25.78-.55v-1.94c-3.16.69-3.82-1.52-3.82-1.52-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.34.95.1-.74.4-1.24.72-1.53-2.52-.29-5.18-1.26-5.18-5.6 0-1.24.44-2.25 1.17-3.05-.12-.29-.51-1.44.11-3 0 0 .96-.31 3.15 1.17.91-.25 1.89-.38 2.86-.38.97 0 1.95.13 2.86.38 2.19-1.48 3.15-1.17 3.15-1.17.62 1.56.23 2.71.11 3 .73.8 1.17 1.81 1.17 3.05 0 4.35-2.67 5.31-5.2 5.59.41.35.77 1.05.77 2.11v3.13c0 .3.21.66.79.55 4.51-1.51 7.76-5.77 7.76-10.79C23.33 5.56 18.27.5 12 .5Z" />
     </svg>
   );
 }

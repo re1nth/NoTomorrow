@@ -13,6 +13,8 @@ import { Suspense, useState, type ReactNode } from 'react';
  * "Reduce Motion" setting both make the page land on its final visual
  * state at first paint.
  */
+const REPO_URL = 'https://github.com/re1nth/NoTomorrow';
+
 export function LandingHero({ children }: { children: ReactNode }) {
   return (
     <main className="relative min-h-screen flex items-center justify-center px-6 py-16 overflow-hidden bg-black">
@@ -20,6 +22,20 @@ export function LandingHero({ children }: { children: ReactNode }) {
       <Suspense fallback={<HeroBlock staticRender={false}>{children}</HeroBlock>}>
         <Hero>{children}</Hero>
       </Suspense>
+      <a
+        href={REPO_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="View source on GitHub"
+        className="absolute bottom-6 left-1/2 -translate-x-1/2 inline-flex items-center gap-2
+                   text-xs uppercase tracking-widest text-white/40 hover:text-white/80
+                   transition-colors focus:outline-none focus-visible:text-white/80"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 .5C5.73.5.67 5.56.67 11.83c0 5.02 3.25 9.28 7.77 10.79.57.1.78-.25.78-.55v-1.94c-3.16.69-3.82-1.52-3.82-1.52-.52-1.32-1.27-1.67-1.27-1.67-1.04-.71.08-.7.08-.7 1.15.08 1.75 1.18 1.75 1.18 1.02 1.75 2.68 1.24 3.34.95.1-.74.4-1.24.72-1.53-2.52-.29-5.18-1.26-5.18-5.6 0-1.24.44-2.25 1.17-3.05-.12-.29-.51-1.44.11-3 0 0 .96-.31 3.15 1.17.91-.25 1.89-.38 2.86-.38.97 0 1.95.13 2.86.38 2.19-1.48 3.15-1.17 3.15-1.17.62 1.56.23 2.71.11 3 .73.8 1.17 1.81 1.17 3.05 0 4.35-2.67 5.31-5.2 5.59.41.35.77 1.05.77 2.11v3.13c0 .3.21.66.79.55 4.51-1.51 7.76-5.77 7.76-10.79C23.33 5.56 18.27.5 12 .5Z" />
+        </svg>
+        Contribute on GitHub
+      </a>
     </main>
   );
 }
