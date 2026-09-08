@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type SVGProps } from 'react';
 import { EasterEgg } from '@/components/EasterEgg';
 import { useEasterAccess } from '@/components/EasterAccessProvider';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -14,7 +14,7 @@ import { beltFor, CATEGORIES, type Category, categoryFor } from './belts';
 // Stable empty set so cards without a loaded history don't churn Heatmap memo.
 const EMPTY_HISTORY: Set<string> = new Set();
 
-type View = 'expanded' | 'compact';
+type View = 'expanded' | 'compact' | 'ultra';
 const VIEW_STORAGE_KEY = 'counters:view';
 
 export default function CountersPage() {
@@ -43,21 +43,18 @@ export default function CountersPage() {
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(VIEW_STORAGE_KEY);
-      if (stored === 'compact' || stored === 'expanded') setView(stored);
+      if (stored === 'compact' || stored === 'expanded' || stored === 'ultra') setView(stored);
     } catch {
       // localStorage blocked (private mode, etc.) — leave default.
     }
   }, []);
-  const toggleView = useCallback(() => {
-    setView((v) => {
-      const next: View = v === 'compact' ? 'expanded' : 'compact';
-      try {
-        window.localStorage.setItem(VIEW_STORAGE_KEY, next);
-      } catch {
-        // Non-fatal — user gets a session-only toggle.
-      }
-      return next;
-    });
+  const selectView = useCallback((next: View) => {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, next);
+    } catch {
+      // Non-fatal — user gets a session-only preference.
+    }
   }, []);
   // Category lives in the URL so returning from a counter detail page lands
   // on the belt-appropriate tab; local state alone would be preserved across
@@ -111,7 +108,7 @@ export default function CountersPage() {
         subtitle="One thread, one punch a day. Don't break the chain."
         right={
           <div className="flex items-center gap-2">
-            <ViewToggle view={view} onToggle={toggleView} />
+            <ViewToggle view={view} onSelect={selectView} />
             <Button onClick={() => setAdding((v) => !v)} variant={adding ? 'ghost' : 'primary'}>
               {adding ? 'Cancel' : '+ New thread'}
             </Button>
@@ -198,9 +195,11 @@ export default function CountersPage() {
             <div
               key={`${view}:${category}`}
               className={
-                view === 'compact'
-                  ? 'grid gap-3 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]'
-                  : 'grid grid-cols-1 gap-5 max-w-[896px] mx-auto'
+                view === 'ultra'
+                  ? 'flex flex-col gap-2'
+                  : view === 'compact'
+                    ? 'grid gap-3 grid-cols-[repeat(auto-fill,minmax(260px,1fr))]'
+                    : 'grid grid-cols-1 gap-5 max-w-[896px] mx-auto'
               }
             >
               {/*
@@ -217,7 +216,16 @@ export default function CountersPage() {
                   .filter((c) => categoryFor(beltFor(c.count).current) === category)
                   .sort((a, b) => b.count - a.count)
                   .map((c) =>
-                    view === 'compact' ? (
+                    view === 'ultra' ? (
+                      <UltraCounterRow
+                        key={c.id}
+                        counter={c}
+                        history={histories[c.id]}
+                        pulsing={pulsing === c.id}
+                        today={today}
+                        onCheckIn={() => handleCheckIn(c.id)}
+                      />
+                    ) : view === 'compact' ? (
                       <CompactCounterCard
                         key={c.id}
                         counter={c}
@@ -252,6 +260,176 @@ export default function CountersPage() {
       )}
       </div>
     </>
+  );
+}
+
+/** Last N days ending on today, oldest → newest. */
+function computeRecentDays(
+  today: string,
+  n: number,
+  history: Set<string>,
+): { iso: string; filled: boolean; isToday: boolean }[] {
+  const [y, m, d] = today.split('-').map(Number) as [number, number, number];
+  const anchor = new Date(y, m - 1, d);
+  const cells: { iso: string; filled: boolean; isToday: boolean }[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const cell = new Date(anchor);
+    cell.setDate(anchor.getDate() - i);
+    const iso = `${cell.getFullYear()}-${String(cell.getMonth() + 1).padStart(2, '0')}-${String(cell.getDate()).padStart(2, '0')}`;
+    cells.push({ iso, filled: history.has(iso), isToday: iso === today });
+  }
+  return cells;
+}
+
+function DayCell({
+  filled,
+  isToday,
+  fillHex,
+  size = 12,
+  title,
+}: {
+  filled: boolean;
+  isToday: boolean;
+  fillHex: string;
+  size?: number;
+  title?: string;
+}) {
+  return (
+    <div
+      title={title}
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 2,
+        backgroundColor: filled ? fillHex : 'rgba(234, 228, 214, 0.10)',
+        outline: isToday ? '1px solid rgba(234, 228, 214, 0.55)' : 'none',
+        outlineOffset: isToday ? 1 : 0,
+        flex: '0 0 auto',
+      }}
+    />
+  );
+}
+
+function UltraPlusOneButton({
+  checkedToday,
+  onCheckIn,
+}: {
+  checkedToday: boolean;
+  onCheckIn: () => Promise<boolean>;
+}) {
+  return (
+    <motion.button
+      type="button"
+      onClick={() => void onCheckIn()}
+      disabled={checkedToday}
+      whileTap={checkedToday ? undefined : { scale: 0.9 }}
+      whileHover={checkedToday ? undefined : { scale: 1.06 }}
+      aria-label={checkedToday ? 'Already checked in today' : 'Check in for today'}
+      title={checkedToday ? 'Done for today' : '+1 today'}
+      className={
+        checkedToday
+          ? 'inline-flex items-center justify-center h-7 min-w-[44px] px-2.5 rounded-full text-[12px] font-display uppercase tracking-wider bg-transparent text-charcoal-soft border border-charcoal/20 cursor-not-allowed'
+          : 'inline-flex items-center justify-center h-7 min-w-[44px] px-2.5 rounded-full text-[12px] font-display uppercase tracking-wider bg-glove text-canvas-soft shadow-glove hover:bg-glove-bright active:bg-glove-deep transition-colors'
+      }
+    >
+      {checkedToday ? '✓' : '+1'}
+    </motion.button>
+  );
+}
+
+// Single-line row: name + belt dot + count + last 21 days + inline +1.
+// The ultra-compact view lets ~15 threads sit on a laptop screen at
+// once — good for scanning "which did I miss today" at a glance.
+const ULTRA_STRIP_LEN = 21;
+
+function UltraCounterRow({
+  counter,
+  history,
+  pulsing,
+  today,
+  onCheckIn,
+}: {
+  counter: CounterRow;
+  history: Set<string> | undefined;
+  pulsing: boolean;
+  today: string;
+  onCheckIn: () => Promise<boolean>;
+}) {
+  const { current } = beltFor(counter.count);
+  const checkedToday = counter.lastCheckIn === today;
+  const days = history ?? EMPTY_HISTORY;
+  const cells = useMemo(
+    () => computeRecentDays(today, ULTRA_STRIP_LEN, days),
+    [today, days],
+  );
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.18 } }}
+      transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+    >
+      <Card
+        tone="default"
+        className={`relative overflow-hidden ${
+          pulsing ? 'ring-2 ring-glove/50' : ''
+        }`}
+      >
+        <div className="flex items-center gap-3 py-1">
+          <div className="flex-1 min-w-0">
+            <UltraRowMeta counter={counter} beltName={current.name} fillHex={current.hex} />
+          </div>
+          <div className="flex items-center gap-[3px] flex-shrink-0">
+            {cells.map((c) => (
+              <DayCell
+                key={c.iso}
+                filled={c.filled}
+                isToday={c.isToday}
+                fillHex={current.hex}
+                size={12}
+                title={`${c.iso}${c.filled ? ' — checked in' : ''}`}
+              />
+            ))}
+          </div>
+          <UltraPlusOneButton checkedToday={checkedToday} onCheckIn={onCheckIn} />
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
+
+function UltraRowMeta({
+  counter,
+  beltName,
+  fillHex,
+}: {
+  counter: CounterRow;
+  beltName: string;
+  fillHex: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 min-w-0">
+      <span
+        aria-hidden
+        className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
+        style={{ backgroundColor: fillHex }}
+      />
+      <Link
+        href={`/counters/${counter.id}`}
+        className="font-display text-sm tracking-wider truncate hover:text-glove transition-colors"
+      >
+        {counter.name}
+      </Link>
+      <span className="text-[10px] uppercase tracking-wider text-charcoal-soft flex-shrink-0">
+        {beltName}
+      </span>
+      <span className="font-display text-base tabular-nums text-charcoal flex-shrink-0 ml-1">
+        {counter.count}
+        <span className="text-[10px] uppercase tracking-wider text-charcoal-soft ml-0.5">d</span>
+      </span>
+    </div>
   );
 }
 
@@ -630,35 +808,86 @@ function BeltBadge({ belt }: { belt: { name: string; hex: string; ink: string } 
   );
 }
 
-function ViewToggle({ view, onToggle }: { view: View; onToggle: () => void }) {
-  const isCompact = view === 'compact';
+function ViewToggle({ view, onSelect }: { view: View; onSelect: (v: View) => void }) {
+  // Segmented control: three density modes with icons that mirror the
+  // layout they produce (one big card → grid of small cards → list of
+  // thin rows). Density increases left → right.
+  const options: readonly {
+    key: View;
+    label: string;
+    Icon: (props: SVGProps<SVGSVGElement>) => ReactNode;
+  }[] = [
+    { key: 'expanded', label: 'Expanded cards', Icon: ExpandedViewIcon },
+    { key: 'compact', label: 'Compact grid', Icon: CompactViewIcon },
+    { key: 'ultra', label: 'Ultra-compact rows', Icon: UltraViewIcon },
+  ];
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      title={isCompact ? 'Switch to expanded view' : 'Switch to compact view'}
-      aria-label={isCompact ? 'Switch to expanded view' : 'Switch to compact view'}
-      aria-pressed={isCompact}
-      className="inline-flex items-center justify-center h-10 w-10 rounded-full border border-charcoal/20 bg-canvas-soft text-charcoal-soft hover:text-charcoal hover:border-charcoal/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-glove"
+    <div
+      role="group"
+      aria-label="View density"
+      className="inline-flex items-center rounded-full border border-charcoal/20 bg-canvas-soft p-0.5"
     >
-      {isCompact ? (
-        // "Rows" icon → clicking returns to expanded stacked view.
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" role="img">
-          <title>Rows</title>
-          <rect x="2" y="3" width="12" height="3" rx="1" fill="currentColor" />
-          <rect x="2" y="10" width="12" height="3" rx="1" fill="currentColor" />
-        </svg>
-      ) : (
-        // "Grid" icon → clicking condenses to compact grid.
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" role="img">
-          <title>Grid</title>
-          <rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor" />
-          <rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor" />
-          <rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor" />
-          <rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor" />
-        </svg>
-      )}
-    </button>
+      {options.map((opt) => {
+        const active = opt.key === view;
+        return (
+          <button
+            key={opt.key}
+            type="button"
+            onClick={() => onSelect(opt.key)}
+            aria-label={opt.label}
+            aria-pressed={active}
+            title={opt.label}
+            className={`inline-flex items-center justify-center h-9 w-9 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-glove ${
+              active
+                ? 'bg-glove text-canvas-soft'
+                : 'text-charcoal-soft hover:text-charcoal'
+            }`}
+          >
+            <opt.Icon className="w-4 h-4" />
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ExpandedViewIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...props} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect
+        x="2"
+        y="3"
+        width="12"
+        height="10"
+        rx="1.5"
+        stroke="currentColor"
+        strokeWidth="1.4"
+      />
+      <rect x="4" y="5.5" width="6" height="1.2" rx="0.5" fill="currentColor" opacity="0.6" />
+      <rect x="4" y="8" width="8" height="1.2" rx="0.5" fill="currentColor" opacity="0.4" />
+      <rect x="4" y="10.5" width="5" height="1.2" rx="0.5" fill="currentColor" opacity="0.4" />
+    </svg>
+  );
+}
+
+function CompactViewIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...props} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="2" y="2" width="5" height="5" rx="1" fill="currentColor" />
+      <rect x="9" y="2" width="5" height="5" rx="1" fill="currentColor" />
+      <rect x="2" y="9" width="5" height="5" rx="1" fill="currentColor" />
+      <rect x="9" y="9" width="5" height="5" rx="1" fill="currentColor" />
+    </svg>
+  );
+}
+
+function UltraViewIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg {...props} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="2" rx="1" fill="currentColor" />
+      <rect x="2" y="7" width="12" height="2" rx="1" fill="currentColor" />
+      <rect x="2" y="11" width="12" height="2" rx="1" fill="currentColor" />
+    </svg>
   );
 }
 
