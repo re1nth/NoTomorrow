@@ -377,7 +377,33 @@ function UltraCounterRow({
           pulsing ? 'ring-2 ring-glove/50' : ''
         }`}
       >
-        <div className="flex items-center gap-3 py-1">
+        {/* Mobile — two lines. The 21-cell strip at 12px would overflow
+            a phone-width card, so drop the +1 up to the meta row and
+            give the strip its own line with slightly smaller (10px)
+            cells. */}
+        <div className="sm:hidden py-1 space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <UltraRowMeta counter={counter} beltName={current.name} fillHex={current.hex} />
+            </div>
+            <UltraPlusOneButton checkedToday={checkedToday} onCheckIn={onCheckIn} />
+          </div>
+          <div className="flex items-center gap-[2px]">
+            {cells.map((c) => (
+              <DayCell
+                key={c.iso}
+                filled={c.filled}
+                isToday={c.isToday}
+                fillHex={current.hex}
+                size={10}
+                title={`${c.iso}${c.filled ? ' — checked in' : ''}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop — single line: meta ▸ strip ▸ +1. */}
+        <div className="hidden sm:flex items-center gap-3 py-1">
           <div className="flex-1 min-w-0">
             <UltraRowMeta counter={counter} beltName={current.name} fillHex={current.hex} />
           </div>
