@@ -21,6 +21,7 @@ function formatMMSS(ms: number): string {
 const links: readonly NavLink[] = [
   { href: '/counters', label: 'Counters', Icon: CountersIcon },
   { href: '/pomodoro', label: 'Pomodoro', Icon: PomodoroIcon },
+  { href: '/discover', label: 'Discover', Icon: DiscoverIcon },
   { href: '/profile', label: 'Profile', Icon: ProfileIcon },
 ] as const;
 
@@ -321,6 +322,23 @@ function PomodoroIcon(props: SVGProps<SVGSVGElement>) {
       <circle cx="12" cy="13" r="8" />
       <path d="M12 9v4l2.5 2.5" />
       <path d="M9 2h6" />
+    </svg>
+  );
+}
+
+function DiscoverIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <polygon points="15.5 8.5 10.5 10.5 8.5 15.5 13.5 13.5 15.5 8.5" />
     </svg>
   );
 }
