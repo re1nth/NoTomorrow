@@ -43,3 +43,12 @@ body {
   background-size: cover, cover, 220px 220px;
   color: theme('colors.charcoal.DEFAULT');
 }
+
+/* Discover POC — brief flash when the camera view swaps to a new photo. */
+@keyframes disco-camera-in {
+  0% { opacity: 0.2; transform: scale(1.06); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.disco-camera-in {
+  animation: disco-camera-in 240ms ease-out;
+}

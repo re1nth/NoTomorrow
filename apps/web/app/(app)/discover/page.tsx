@@ -1,5 +1,5 @@
+import { DiscoverPOC } from '@/components/DiscoverPOC';
 import { SectionTitle } from '@/components/SectionTitle';
-import { Card } from '@/lib/ui';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,14 +8,10 @@ export default function DiscoverPage() {
     <>
       <SectionTitle
         title="Discover"
-        subtitle="Something new is coming here soon."
+        subtitle="Rotate the trackball. Frame a photo. Fade the greens."
       />
-      <div className="mx-auto max-w-2xl">
-        <Card>
-          <p className="text-sm text-charcoal-soft">
-            This space is under construction.
-          </p>
-        </Card>
+      <div className="mx-auto max-w-5xl">
+        <DiscoverPOC />
       </div>
     </>
   );
