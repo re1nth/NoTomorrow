@@ -76,7 +76,12 @@ function project(phi: number, theta: number, rotX: number, rotY: number) {
 // Shared state hook
 // ────────────────────────────────────────────────────────────
 
-function useDiscoState(count: number) {
+// What happens when a task is seen. Declared up here so useDiscoState can
+// take it as a parameter; the palette constants that go with it stay next
+// to the marker rendering below.
+type SeenBehavior = 'dust' | 'ember';
+
+function useDiscoState(count: number, behavior: SeenBehavior) {
   const photos = useMemo(() => generatePhotos(count), [count]);
   const [rotX, setRotX] = useState(0);
   const [rotY, setRotY] = useState(0);
@@ -91,11 +96,17 @@ function useDiscoState(count: number) {
 
   const reset = useCallback(() => setSeen(new Set()), []);
 
-  // Front-facing tile — the one closest to (0, 0, +1) after rotation.
+  // Front-facing task — the photo with the highest z after rotation.
+  //
+  // In 'dust' mode a snapped-away task is *gone* from the map, so it
+  // must not be a candidate for the viewfinder either. In 'ember' mode
+  // viewed markers stay on the sphere (amber) and can be revisited, so
+  // they remain candidates.
   const activeId = useMemo(() => {
-    let bestId = photos[0]?.id ?? 0;
+    let bestId: number | null = null;
     let bestZ = -Infinity;
     for (const p of photos) {
+      if (behavior === 'dust' && seen.has(p.id)) continue;
       const { z } = project(p.phi, p.theta, rotX, rotY);
       if (z > bestZ) {
         bestZ = z;
@@ -103,12 +114,35 @@ function useDiscoState(count: number) {
       }
     }
     return bestId;
-  }, [photos, rotX, rotY]);
+  }, [photos, rotX, rotY, behavior, seen]);
 
-  // Dwell ~700ms on a tile → mark as seen. Long enough to avoid marking
-  // things you scrolled past accidentally, short enough that intent counts.
+  // Short dwell (~120ms) — long enough for the "bulge" active-state to
+  // register visually, but short enough that a pause on a task still
+  // marks it as seen.
+  //
+  // Cascade guard: when a mark completes in dust mode, `seen` grows AND
+  // `activeId` auto-promotes to the next-nearest unseen photo. If we
+  // scheduled a new dwell timer on that render, the next task would snap
+  // away before the user ever saw it — the "everything vanished" bug.
+  // So on any render where `seen` changed, we bail; the next render
+  // triggered by rotation will re-enable dwell.
+  //
+  // Rotation deps: without `rotX`/`rotY` in the deps list, this effect
+  // never re-fires once `activeId` becomes stable — which is exactly
+  // what happens when only one task remains unseen. It then sits in the
+  // viewfinder forever, never marked. Including the rotation values makes
+  // the effect fire on drag, arming the dwell timer.
+  const prevSeenRef = useRef<Set<number>>(seen);
   useEffect(() => {
-    if (seen.has(activeId)) return;
+    const seenChanged = prevSeenRef.current !== seen;
+    prevSeenRef.current = seen;
+    if (seenChanged) return;
+    if (activeId === null || seen.has(activeId)) return;
+    // Ember dwell is much shorter than dust: marking is reversible (the
+    // amber marker stays on the sphere), so we can afford to be snappy.
+    // Dust stays at ~120ms so a fast fling doesn't accidentally nuke a
+    // handful of tasks.
+    const dwellMs = behavior === 'dust' ? 120 : 40;
     const t = setTimeout(() => {
       setSeen((s) => {
         if (s.has(activeId)) return s;
@@ -116,12 +150,14 @@ function useDiscoState(count: number) {
         next.add(activeId);
         return next;
       });
-    }, 700);
+    }, dwellMs);
     return () => clearTimeout(t);
-  }, [activeId, seen]);
+  }, [activeId, seen, rotX, rotY, behavior]);
 
-  // count is always > 0 at the call sites, so photos[0] is a safe fallback.
-  const activePhoto = (photos.find((p) => p.id === activeId) ?? photos[0]) as Photo;
+  const activePhoto =
+    activeId !== null
+      ? (photos.find((p) => p.id === activeId) ?? null)
+      : null;
 
   return { photos, rotX, rotY, rotate, seen, activePhoto, reset };
 }
@@ -321,7 +357,290 @@ function Trackball({
 
 // ────────────────────────────────────────────────────────────
 // Disco ball
+//
+// A mirrored silver sphere tiled with hundreds of tiny polygon facets.
+// Each facet catches the "room light" differently depending on which
+// direction it's facing, so the whole ball shimmers as you rotate it —
+// the way a real disco ball does.
+//
+// A subset of the facets are TASK MARKERS: same polygon-on-sphere shape
+// as the silver flakes, but vividly coloured. Each marker = one
+// discoverable post. When a marker's post is "seen" (dwelled on in the
+// camera view), it disintegrates like the Thanos snap in Endgame:
+// ~24 coloured particles drift outward, blur, and fade to nothing.
 // ────────────────────────────────────────────────────────────
+
+// Silver flakes — Fibonacci-distributed and heavily overlapped so the
+// surface reads as one continuous mirrored skin rather than a scatter of
+// dots on a base. Each has a stable rotation + shade seed so re-renders
+// don't reshuffle them.
+const SILVER_FLAKES: {
+  phi: number;
+  theta: number;
+  rot: number;
+  shadeVar: number;
+  sizeVar: number;
+}[] = (() => {
+  const arr: {
+    phi: number;
+    theta: number;
+    rot: number;
+    shadeVar: number;
+    sizeVar: number;
+  }[] = [];
+  const golden = Math.PI * (3 - Math.sqrt(5));
+  const n = 720;
+  for (let i = 0; i < n; i++) {
+    const y = 1 - (i / (n - 1)) * 2;
+    const phi = Math.acos(y);
+    const theta = golden * i;
+    const seed = (i + 1) * 991;
+    arr.push({
+      phi,
+      theta,
+      // Tighter rotation range: adjacent flakes align better into an
+      // implied tessellation instead of reading as random confetti.
+      rot: (seed % 50) - 25,
+      shadeVar: ((seed * 3) % 100) / 100,
+      sizeVar: ((seed * 7) % 100) / 100,
+    });
+  }
+  return arr;
+})();
+
+// Single-hue palette for everything content-related on the sphere.
+// Green = discoverable, amber = viewed (only used in the 'ember' variant).
+const CONTENT_HUE_UNSEEN = 145;
+const CONTENT_HUE_VIEWED = 30;
+
+// Fixed "room light" direction — matches the specular hotspot painted
+// into the sphere base (top-left). Facets facing this direction shine.
+const LIGHT_DIR = (() => {
+  const v = { x: -0.35, y: 0.55, z: 0.85 };
+  const len = Math.hypot(v.x, v.y, v.z);
+  return { x: v.x / len, y: v.y / len, z: v.z / len };
+})();
+
+function SilverFlake({
+  flake,
+  rotX,
+  rotY,
+  r,
+}: {
+  flake: (typeof SILVER_FLAKES)[number];
+  rotX: number;
+  rotY: number;
+  r: number;
+}) {
+  const { x, y, z } = project(flake.phi, flake.theta, rotX, rotY);
+  if (z < -0.05) return null;
+  const depth = (z + 1) / 2;
+  // Simple diffuse shading: bright when the flake faces the light.
+  const dot = Math.max(0, x * LIGHT_DIR.x + y * LIGHT_DIR.y + z * LIGHT_DIR.z);
+  const brightness = Math.min(1, 0.3 + dot * (0.7 + flake.shadeVar * 0.2));
+  // Larger overlapping flakes → the sphere reads as a continuous mirrored
+  // skin. The extra bytes are cheap; the "gapless" impression is not.
+  const size = (10 + flake.sizeVar * 6) * (0.6 + depth * 0.6);
+  const light = Math.round(brightness * 100);
+  const hot = brightness > 0.78;
+  return (
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        width: size,
+        height: size,
+        left: r + x * r * 0.94 - size / 2,
+        top: r - y * r * 0.94 - size / 2,
+        transform: `rotate(${flake.rot}deg)`,
+        backgroundColor: `hsl(215, 10%, ${light}%)`,
+        // Sharp corners so overlapping quads read as flat mirror facets,
+        // not confetti dots.
+        borderRadius: 0,
+        boxShadow: hot
+          ? `0 0 ${brightness * 4}px hsla(210, 40%, 96%, ${brightness * 0.7})`
+          : undefined,
+        opacity: 0.9 + depth * 0.1,
+        zIndex: Math.round((z + 1) * 200),
+      }}
+    />
+  );
+}
+
+// One coloured facet — same shape family as the silver flakes, but
+// clearly a task.
+//
+// Dust behaviour needs a small state machine so the dusting→gone
+// transition can play out on its own 1800ms timer after the mark. Ember
+// behaviour, on the other hand, has no timed transition — amber is
+// purely a derived visual of `isSeen`. Routing ember through the phase
+// state machine added an extra render cycle on top of the CSS transition,
+// which read as lag. So the marker only tracks phase for dust; ember
+// renders straight from props.
+function ContentMarker({
+  photo,
+  rotX,
+  rotY,
+  r,
+  isSeen,
+  isActive,
+  behavior,
+}: {
+  photo: Photo;
+  rotX: number;
+  rotY: number;
+  r: number;
+  isSeen: boolean;
+  isActive: boolean;
+  behavior: SeenBehavior;
+}) {
+  const [dustPhase, setDustPhase] = useState<'solid' | 'dusting' | 'gone'>(
+    () => (behavior === 'dust' && isSeen ? 'gone' : 'solid'),
+  );
+  useEffect(() => {
+    if (behavior !== 'dust') {
+      // Behaviour just switched to ember — make sure dust state doesn't
+      // linger and swallow subsequent renders.
+      if (dustPhase !== 'solid') setDustPhase('solid');
+      return;
+    }
+    if (!isSeen) {
+      // Reset flow: parent cleared seen → snap back to solid so a
+      // future re-mark can play the dust animation again.
+      if (dustPhase !== 'solid') setDustPhase('solid');
+      return;
+    }
+    if (dustPhase !== 'solid') return;
+    setDustPhase('dusting');
+    const t = setTimeout(() => setDustPhase('gone'), 1800);
+    return () => clearTimeout(t);
+  }, [isSeen, dustPhase, behavior]);
+
+  const { x, y, z } = project(photo.phi, photo.theta, rotX, rotY);
+  if (z < -0.05) return null;
+
+  // Dust-mode terminal states
+  if (behavior === 'dust') {
+    if (dustPhase === 'gone') return null;
+    if (dustPhase === 'dusting') {
+      const cx = r + x * r * 0.94;
+      const cy = r - y * r * 0.94;
+      return <ThanosDust cx={cx} cy={cy} z={z} hue={CONTENT_HUE_UNSEEN} />;
+    }
+  }
+
+  const isViewed = behavior === 'ember' && isSeen;
+  const hue = isViewed ? CONTENT_HUE_VIEWED : CONTENT_HUE_UNSEEN;
+  const depth = (z + 1) / 2;
+  const base = 10 * (0.55 + depth * 0.85);
+  const size = isActive ? base * 1.55 : base;
+  const color = `hsl(${hue}, 88%, 60%)`;
+  const cx = r + x * r * 0.94;
+  const cy = r - y * r * 0.94;
+  return (
+    <div
+      className="absolute pointer-events-none"
+      style={{
+        width: size,
+        height: size,
+        left: cx - size / 2,
+        top: cy - size / 2,
+        transform: `rotate(${((photo.id * 47) % 90) - 45}deg)`,
+        backgroundImage: `radial-gradient(circle at 30% 30%, hsl(${hue}, 95%, 75%), hsl(${hue}, 80%, 45%))`,
+        borderRadius: 2,
+        boxShadow: isActive
+          ? `0 0 14px ${color}, 0 0 26px hsla(${hue}, 80%, 55%, 0.6)`
+          : `0 0 7px hsla(${hue}, 85%, 55%, 0.75)`,
+        // Snappier transitions overall. The colour change (green→amber)
+        // is the primary feedback the user is waiting on, so it's the
+        // shortest.
+        transition: 'width 180ms ease-out, height 180ms ease-out, background-image 160ms ease-out, box-shadow 180ms ease-out',
+        zIndex: Math.round((z + 1) * 200) + 50,
+      }}
+    />
+  );
+}
+
+// Thanos-snap dust burst — ~22 particles in the shared green palette
+// drift outward from (cx, cy), blur, and fade over ~1.5s. Particle field
+// is seeded from the burst origin so it stays visually stable across
+// React re-renders that happen mid-animation (e.g. the ball rotating).
+function ThanosDust({
+  cx,
+  cy,
+  z,
+  hue,
+}: {
+  cx: number;
+  cy: number;
+  z: number;
+  hue: number;
+}) {
+  const particles = useMemo(() => {
+    const arr: {
+      angle: number;
+      distance: number;
+      duration: number;
+      delay: number;
+      size: number;
+    }[] = [];
+    const n = 22;
+    const seedBase = Math.floor(cx * 13 + cy * 7);
+    for (let i = 0; i < n; i++) {
+      const s = (i + 1) * 733 + seedBase;
+      const jitter = ((s % 100) / 100 - 0.5) * 0.7;
+      arr.push({
+        angle: (i / n) * Math.PI * 2 + jitter,
+        distance: 14 + (((s * 3) % 100) / 100) * 26,
+        duration: 900 + (((s * 5) % 100) / 100) * 700,
+        delay: (((s * 7) % 100) / 100) * 220,
+        size: 1.1 + (((s * 11) % 100) / 100) * 2.4,
+      });
+    }
+    return arr;
+    // Deliberately no deps — particles must be fixed for the duration of
+    // the burst. Downstream re-renders (ball rotation) reposition the
+    // origin but should not reshuffle the swarm.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Two-frame trick: paint the initial state first, then flip to the
+  // final state so the CSS transition actually runs (otherwise the
+  // browser may collapse the two states and skip straight to the end).
+  const [started, setStarted] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setStarted(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <>
+      {particles.map((p, i) => {
+        const dx = Math.cos(p.angle) * p.distance;
+        const dy = Math.sin(p.angle) * p.distance - 22; // upward bias
+        return (
+          <div
+            key={i}
+            className="absolute rounded-full pointer-events-none"
+            style={{
+              width: p.size,
+              height: p.size,
+              left: cx - p.size / 2,
+              top: cy - p.size / 2,
+              backgroundColor: `hsl(${hue}, 78%, 62%)`,
+              opacity: started ? 0 : 0.92,
+              transform: started
+                ? `translate(${dx}px, ${dy}px) scale(0.32)`
+                : 'translate(0, 0) scale(1)',
+              transition: `transform ${p.duration}ms cubic-bezier(0.22, 0.65, 0.3, 1) ${p.delay}ms, opacity ${p.duration}ms ease-out ${p.delay}ms`,
+              filter: started ? 'blur(1.4px)' : 'none',
+              zIndex: Math.round((z + 1) * 200) + 100,
+            }}
+          />
+        );
+      })}
+    </>
+  );
+}
 
 function DiscoBall({
   photos,
@@ -330,13 +649,17 @@ function DiscoBall({
   seen,
   activeId,
   size = 320,
+  behavior,
 }: {
   photos: Photo[];
   rotX: number;
   rotY: number;
   seen: Set<number>;
-  activeId: number;
+  // Null when no task is currently the viewfinder subject — e.g. dust
+  // mode after every task has snapped away.
+  activeId: number | null;
   size?: number;
+  behavior: SeenBehavior;
 }) {
   const r = size / 2;
   return (
@@ -345,62 +668,47 @@ function DiscoBall({
       style={{
         width: size,
         height: size,
-        background:
-          'radial-gradient(circle at 30% 28%, #2a2a3a, #10101a 60%, #05050a)',
-        boxShadow:
-          'inset -10px -20px 40px rgba(0,0,0,0.8), inset 8px 12px 24px rgba(180,180,220,0.15), 0 8px 24px rgba(0,0,0,0.55)',
+        // Base is intentionally silvery-with-a-hint-of-shadow so any tiny
+        // seam between overlapping flakes reads as a mirror crease, not a
+        // hole in the surface.
+        backgroundImage: [
+          'radial-gradient(circle at 32% 24%, rgba(255,255,255,0.7), rgba(255,255,255,0) 32%)',
+          'radial-gradient(circle at 62% 78%, rgba(255,255,255,0.10), rgba(255,255,255,0) 45%)',
+          'radial-gradient(circle at 50% 50%, #a8b0bb 0%, #7f8895 30%, #4d5665 62%, #2a303a 88%, #14181e 100%)',
+        ].join(', '),
+        boxShadow: [
+          'inset -12px -20px 36px rgba(0,0,0,0.55)',
+          'inset 10px 14px 26px rgba(255,255,255,0.28)',
+          '0 12px 30px rgba(0,0,0,0.55)',
+        ].join(', '),
       }}
+      aria-label="Discoverable content — silver disco sphere"
     >
-      {photos.map((p) => {
-        const { x, y, z } = project(p.phi, p.theta, rotX, rotY);
-        // Skip the far hemisphere entirely — no depth-of-field trickery
-        // needed for a POC; the sphere silhouette does the occlusion.
-        if (z < -0.05) return null;
-        const depth = (z + 1) / 2; // 0 (back) → 1 (front)
-        const scale = 0.6 + depth * 0.5;
-        const opacity = 0.35 + depth * 0.65;
-        const tile = 30 * scale;
-        const isSeen = seen.has(p.id);
-        const isActive = p.id === activeId;
-        return (
-          <div
-            key={p.id}
-            className="absolute rounded-md flex items-center justify-center text-[10px] font-display transition-[box-shadow,filter] duration-300"
-            style={{
-              width: tile,
-              height: tile,
-              left: r + x * r * 0.9 - tile / 2,
-              // Screen-Y grows downward but world-Y grows upward, so subtract:
-              // now north pole renders at the top and drag-down feels like
-              // pulling the surface down.
-              top: r - y * r * 0.9 - tile / 2,
-              opacity,
-              background: isSeen
-                ? `hsl(${p.hue} 15% 40%)`
-                : `linear-gradient(135deg, hsl(${p.hue} 82% 58%), hsl(${(p.hue + 40) % 360} 70% 40%))`,
-              filter: isSeen ? 'saturate(0.35) brightness(0.7)' : 'none',
-              boxShadow: isActive
-                ? '0 0 0 2px #ffffff, 0 0 18px 4px rgba(255,255,255,0.55)'
-                : isSeen
-                  ? 'inset 0 0 0 1px rgba(255,255,255,0.05)'
-                  : '0 0 0 1.5px #4ade80, 0 0 10px rgba(74,222,128,0.55)',
-              zIndex: Math.round((z + 1) * 100),
-            }}
-            aria-hidden
-          >
-            <span className="text-white/85 mix-blend-difference tabular-nums">
-              {p.label}
-            </span>
-          </div>
-        );
-      })}
-      {/* Equator highlight — sells the "chrome sphere" look. */}
+      {SILVER_FLAKES.map((flake, i) => (
+        <SilverFlake key={i} flake={flake} rotX={rotX} rotY={rotY} r={r} />
+      ))}
+      {photos.map((p) => (
+        <ContentMarker
+          key={p.id}
+          photo={p}
+          rotX={rotX}
+          rotY={rotY}
+          r={r}
+          isSeen={seen.has(p.id)}
+          isActive={p.id === activeId}
+          behavior={behavior}
+        />
+      ))}
+      {/* Ambient highlight streaks — sell the sphere read even between
+          the specular hotspot and the flakes. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 rounded-full"
         style={{
-          background:
-            'radial-gradient(ellipse 80% 6% at 50% 42%, rgba(255,255,255,0.15), transparent 70%)',
+          backgroundImage: [
+            'radial-gradient(ellipse 90% 5% at 50% 44%, rgba(255,255,255,0.16), transparent 70%)',
+            'radial-gradient(ellipse 5% 60% at 34% 40%, rgba(255,255,255,0.2), transparent 72%)',
+          ].join(', '),
         }}
       />
     </div>
@@ -497,110 +805,108 @@ function ProgressChip({ state }: { state: DiscoState }) {
 // Variants
 // ────────────────────────────────────────────────────────────
 
-function StudioVariant({ state }: { state: DiscoState }) {
-  const { photos, rotX, rotY, rotate, seen, activePhoto } = state;
+function EmptyCameraView({
+  width = 300,
+  aspect = '9 / 16',
+  onReset,
+}: {
+  width?: number;
+  aspect?: string;
+  onReset: () => void;
+}) {
   return (
-    <div className="flex flex-col items-center gap-6">
-      <ProgressChip state={state} />
-      <div className="flex items-center justify-center gap-8 flex-wrap">
-        <DiscoBall
-          photos={photos}
-          rotX={rotX}
-          rotY={rotY}
-          seen={seen}
-          activeId={activePhoto.id}
-          size={280}
-        />
-        <CameraView photo={activePhoto} width={220} />
-        <Trackball onRotate={rotate} size={160} />
+    <div
+      className="relative rounded-2xl overflow-hidden border border-charcoal/40 bg-black shadow-2xl flex items-center justify-center"
+      style={{ width, aspectRatio: aspect }}
+      aria-live="polite"
+      aria-label="Nothing left to discover"
+    >
+      <div className="flex flex-col items-center gap-3 px-6 text-center">
+        <div className="font-display text-3xl text-charcoal-soft">
+          Nothing left
+        </div>
+        <div className="text-[10px] font-display uppercase tracking-wider text-charcoal-soft">
+          You've cleared the map
+        </div>
+        <button
+          type="button"
+          onClick={onReset}
+          className="mt-2 text-[11px] font-display uppercase tracking-wider text-charcoal hover:text-glove underline underline-offset-2"
+        >
+          Reset
+        </button>
       </div>
-      <p className="text-xs text-charcoal-soft max-w-md text-center">
-        Drag the trackball to rotate the sphere. The tile facing you snaps
-        into the camera view; dwell on it and its green marker fades.
-      </p>
+      <div className="absolute inset-2 rounded-xl border border-white/10 pointer-events-none" />
     </div>
   );
 }
 
-function ViewfinderVariant({ state }: { state: DiscoState }) {
-  const { photos, rotX, rotY, rotate, seen, activePhoto } = state;
+function ViewfinderVariant({
+  state,
+  behavior,
+}: {
+  state: DiscoState;
+  behavior: SeenBehavior;
+}) {
+  const { photos, rotX, rotY, rotate, seen, activePhoto, reset } = state;
   return (
     <div className="flex flex-col items-center gap-6">
       <ProgressChip state={state} />
-      <div className="relative">
-        <CameraView photo={activePhoto} width={300} />
-        {/* Minimap disco ball floats over the top-right corner. */}
-        <div className="absolute -top-4 -right-4">
+      {/* Camera and disco sphere sit side-by-side — the ball never
+          occludes the shot; they read as two instruments on one panel. */}
+      <div className="flex items-start justify-center gap-8 flex-wrap">
+        {activePhoto ? (
+          <CameraView photo={activePhoto} width={300} />
+        ) : (
+          <EmptyCameraView width={300} onReset={reset} />
+        )}
+        <div className="flex flex-col items-center gap-2 pt-2">
           <DiscoBall
             photos={photos}
             rotX={rotX}
             rotY={rotY}
             seen={seen}
-            activeId={activePhoto.id}
-            size={120}
+            activeId={activePhoto?.id ?? null}
+            size={220}
+            behavior={behavior}
           />
+          <span className="text-[10px] font-display uppercase tracking-wider text-charcoal-soft">
+            Map
+          </span>
         </div>
       </div>
-      <Trackball onRotate={rotate} size={180} />
+      {/* Trackball sits below and is smaller than the disco sphere — a
+          modest controller under a substantial "map". */}
+      <Trackball onRotate={rotate} size={120} />
       <p className="text-xs text-charcoal-soft max-w-md text-center">
-        Camera holds the stage. The disco ball is a peripheral map of what's
-        left — glance at the greens to plan a route with the trackball.
-      </p>
-    </div>
-  );
-}
-
-function CockpitVariant({ state }: { state: DiscoState }) {
-  const { photos, rotX, rotY, rotate, seen, activePhoto } = state;
-  return (
-    <div className="flex flex-col items-center gap-4">
-      <ProgressChip state={state} />
-      <div
-        className="relative w-full max-w-[360px] rounded-3xl border border-charcoal/30 bg-black/70 overflow-hidden shadow-2xl"
-        style={{ aspectRatio: '9 / 19.5' }}
-      >
-        {/* Phone-frame simulation: camera stretches across the top ~65%. */}
-        <div className="absolute inset-x-0 top-0 bottom-[38%] flex items-center justify-center p-3">
-          <CameraView photo={activePhoto} width={280} aspect="9 / 14" />
-        </div>
-        {/* Tiny disco ball minimap in the top-right corner. */}
-        <div className="absolute top-3 right-3">
-          <DiscoBall
-            photos={photos}
-            rotX={rotX}
-            rotY={rotY}
-            seen={seen}
-            activeId={activePhoto.id}
-            size={72}
-          />
-        </div>
-        {/* Trackball dominates the bottom for thumb reach. */}
-        <div className="absolute inset-x-0 bottom-6 flex items-center justify-center">
-          <Trackball onRotate={rotate} size={150} />
-        </div>
-      </div>
-      <p className="text-xs text-charcoal-soft max-w-md text-center">
-        One-hand mode. Thumb sits on the trackball; the camera swaps as you
-        steer. Corner minimap only draws the eye when green tiles remain.
+        Camera holds the stage. Roll the trackball to spin the mirrored
+        sphere — each green facet is a task; land it in the viewfinder
+        and it {behavior === 'dust' ? 'snaps to dust' : 'ambers over to mark it viewed'}.
       </p>
     </div>
   );
 }
 
 // ────────────────────────────────────────────────────────────
-// Shell with variant switcher
+// Shell — one layout (Viewfinder), two behaviours for what
+// happens when a task is "seen": dust away, or turn amber.
 // ────────────────────────────────────────────────────────────
 
-type VariantKey = 'studio' | 'viewfinder' | 'cockpit';
-
-const VARIANTS: { key: VariantKey; label: string }[] = [
-  { key: 'studio', label: 'Studio' },
-  { key: 'viewfinder', label: 'Viewfinder' },
-  { key: 'cockpit', label: 'Cockpit' },
+const BEHAVIOR_TABS: { key: SeenBehavior; label: string; caption: string }[] = [
+  {
+    key: 'dust',
+    label: 'Snap away',
+    caption: 'Seen tasks disintegrate like the Endgame snap.',
+  },
+  {
+    key: 'ember',
+    label: 'Turn amber',
+    caption: 'Seen tasks amber over and stay — a trail of what you\'ve looked at.',
+  },
 ];
 
-function isVariantKey(v: string): v is VariantKey {
-  return v === 'studio' || v === 'viewfinder' || v === 'cockpit';
+function isBehaviorKey(v: string): v is SeenBehavior {
+  return v === 'dust' || v === 'ember';
 }
 
 export function DiscoverPOC() {
@@ -608,32 +914,30 @@ export function DiscoverPOC() {
   // shorthands, and hsl()/hex colours — every one of those normalizes
   // differently in the DOM vs. what React emits, so SSR'd markup can't hydrate
   // cleanly against it. Since none of it is meaningful until interaction
-  // starts anyway, gate the render on mount: the server sends a tiny
-  // placeholder, the client swaps in the real thing, no attributes to
-  // mismatch.
+  // starts anyway, gate the render on mount.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  const state = useDiscoState(24);
-  const [variant, setVariant] = useState<VariantKey>('studio');
+  const [behavior, setBehavior] = useState<SeenBehavior>('dust');
+  const state = useDiscoState(24, behavior);
 
-  // Sync with URL hash so /discover#viewfinder deep-links to a variant.
-  // Handy for screenshots and shareable comparisons.
+  // Deep-link the behaviour via /discover#dust or #ember.
   useEffect(() => {
     if (!mounted) return;
     const apply = () => {
       const h = window.location.hash.replace(/^#/, '');
-      if (isVariantKey(h)) setVariant(h);
+      if (isBehaviorKey(h)) setBehavior(h);
     };
     apply();
     window.addEventListener('hashchange', apply);
     return () => window.removeEventListener('hashchange', apply);
   }, [mounted]);
 
-  const pick = (v: VariantKey) => {
-    setVariant(v);
+  const pick = (b: SeenBehavior) => {
+    setBehavior(b);
+    state.reset();
     if (typeof window !== 'undefined') {
-      history.replaceState(null, '', `#${v}`);
+      history.replaceState(null, '', `#${b}`);
     }
   };
 
@@ -647,24 +951,27 @@ export function DiscoverPOC() {
     );
   }
 
+  const caption = BEHAVIOR_TABS.find((b) => b.key === behavior)?.caption ?? '';
+
   return (
-    <div className="flex flex-col items-center gap-6">
-      <div className="flex gap-2 flex-wrap justify-center">
-        {VARIANTS.map((v) => (
-          <Button
-            key={v.key}
-            size="sm"
-            variant={variant === v.key ? 'primary' : 'ghost'}
-            onClick={() => pick(v.key)}
-          >
-            {v.label}
-          </Button>
-        ))}
+    <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex gap-2 flex-wrap justify-center">
+          {BEHAVIOR_TABS.map((b) => (
+            <Button
+              key={b.key}
+              size="sm"
+              variant={behavior === b.key ? 'primary' : 'ghost'}
+              onClick={() => pick(b.key)}
+            >
+              {b.label}
+            </Button>
+          ))}
+        </div>
+        <p className="text-[11px] text-charcoal-soft">{caption}</p>
       </div>
-      <div className="w-full">
-        {variant === 'studio' && <StudioVariant state={state} />}
-        {variant === 'viewfinder' && <ViewfinderVariant state={state} />}
-        {variant === 'cockpit' && <CockpitVariant state={state} />}
+      <div className="w-full pt-2">
+        <ViewfinderVariant state={state} behavior={behavior} />
       </div>
     </div>
   );
