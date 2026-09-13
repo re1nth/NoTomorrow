@@ -85,8 +85,9 @@ export function ProfileForm({ initial, isCloud, onSignOut }: Props) {
         setDeleting(false);
         return;
       }
-      // Session row is FK-cascaded away in cloud mode; the layout will
-      // redirect to /login on the next authed navigation. Head home.
+      // The DELETE handler clears the Auth.js session cookies in its
+      // response (JWT strategy — there's no session row to cascade away),
+      // so this navigation lands on the marketing home unauthenticated.
       window.location.href = '/';
     } catch (err) {
       setStatus({ kind: 'err', msg: (err as Error).message });

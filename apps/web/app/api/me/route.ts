@@ -126,9 +126,30 @@ export async function PATCH(req: Request) {
   });
 }
 
+// Auth.js v5 cookie names. The __Secure- / __Host- prefixed variants are
+// what the browser stores in production (HTTPS); the unprefixed names are
+// used in dev. We clear both so the same code path works in either.
+// __Host- has stricter requirements (path must be '/', no Domain) which
+// are already satisfied by how Auth.js sets them.
+const AUTH_COOKIES: { name: string; secure: boolean }[] = [
+  { name: '__Secure-authjs.session-token', secure: true },
+  { name: 'authjs.session-token', secure: false },
+  { name: '__Secure-authjs.callback-url', secure: true },
+  { name: 'authjs.callback-url', secure: false },
+  { name: '__Host-authjs.csrf-token', secure: true },
+  { name: 'authjs.csrf-token', secure: false },
+];
+
 /**
- * DELETE /api/me — delete the current user. FK cascades wipe counters,
- * check-ins, adapter accounts, and sessions.
+ * DELETE /api/me — delete the current user.
+ *
+ * FK cascades wipe counters, check-ins, and any adapter rows (accounts,
+ * sessions) that exist. Session strategy here is JWT, so there is no
+ * session row to cascade — the browser still holds a signed cookie that
+ * decodes to the just-deleted uid. Left alone, that stale cookie makes
+ * `/` see the visitor as authenticated and bounce them to `/counters`,
+ * where every API call 401s. Clearing the Auth.js cookies here means the
+ * client's follow-up navigation to `/` hits the landing page cleanly.
  */
 export async function DELETE() {
   let user: { id: string };
@@ -141,5 +162,17 @@ export async function DELETE() {
   if (result.length === 0) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
-  return NextResponse.json({ id: user.id });
+  const response = NextResponse.json({ id: user.id });
+  for (const { name, secure } of AUTH_COOKIES) {
+    response.cookies.set({
+      name,
+      value: '',
+      path: '/',
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: 'lax',
+      secure,
+    });
+  }
+  return response;
 }
