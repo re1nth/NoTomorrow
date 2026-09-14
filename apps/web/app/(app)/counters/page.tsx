@@ -1,6 +1,6 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from 'framer-motion';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type SVGProps } from 'react';
@@ -9,6 +9,7 @@ import { useEasterAccess } from '@/components/EasterAccessProvider';
 import { SectionTitle } from '@/components/SectionTitle';
 import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
+import { CompassArrow, NewestDot, PulseCell, ThinArrow, positionOf } from './arrows';
 import { beltFor, CATEGORIES, type Category, categoryFor } from './belts';
 
 // Stable empty set so cards without a loaded history don't churn Heatmap memo.
@@ -37,6 +38,10 @@ export default function CountersPage() {
   });
 
   const [pulsing, setPulsing] = useState<string | null>(null);
+  // pulseKeys[id] increments on each successful check-in for that counter.
+  // Cells watch this via useEffect to re-fire keyframed animations (e.g. the
+  // ultra strip's domino wave) without depending on `pulsing`'s timed reset.
+  const [pulseKeys, setPulseKeys] = useState<Record<string, number>>({});
   // View mode persists across reloads. Start expanded to avoid a hydration
   // mismatch, then read localStorage on mount and adopt the stored value.
   const [view, setView] = useState<View>('expanded');
@@ -96,6 +101,7 @@ export default function CountersPage() {
     const row = await checkIn(id);
     if (!row) return false;
     setPulsing(id);
+    setPulseKeys((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
     setTimeout(() => setPulsing((p) => (p === id ? null : p)), 900);
     return true;
   }
@@ -222,6 +228,7 @@ export default function CountersPage() {
                         counter={c}
                         history={histories[c.id]}
                         pulsing={pulsing === c.id}
+                        pulseKey={pulseKeys[c.id] ?? 0}
                         today={today}
                         onCheckIn={() => handleCheckIn(c.id)}
                       />
@@ -231,6 +238,7 @@ export default function CountersPage() {
                         counter={c}
                         history={histories[c.id]}
                         pulsing={pulsing === c.id}
+                        pulseKey={pulseKeys[c.id] ?? 0}
                         today={today}
                         onCheckIn={() => handleCheckIn(c.id)}
                       />
@@ -240,6 +248,7 @@ export default function CountersPage() {
                         counter={c}
                         history={histories[c.id]}
                         pulsing={pulsing === c.id}
+                        pulseKey={pulseKeys[c.id] ?? 0}
                         today={today}
                         onCheckIn={() => handleCheckIn(c.id)}
                       />
@@ -281,22 +290,46 @@ function computeRecentDays(
   return cells;
 }
 
-function DayCell({
+function UltraArrowCell({
+  i,
+  iso,
   filled,
   isToday,
+  isNewest,
   fillHex,
-  size = 12,
-  title,
+  size,
+  pulseKey,
 }: {
+  i: number;
+  iso: string;
   filled: boolean;
   isToday: boolean;
+  isNewest: boolean;
   fillHex: string;
-  size?: number;
-  title?: string;
+  size: number;
+  pulseKey: number;
 }) {
+  const controls = useAnimationControls();
+  const reduce = useReducedMotion();
+
+  // Domino wave: on each +1 (pulseKey change) every filled cell tips like a
+  // domino, staggered oldest → newest so the wave races into the north star.
+  useEffect(() => {
+    if (pulseKey === 0 || !filled || reduce) return;
+    controls.start({
+      rotateY: [0, 90, 0],
+      scale: [1, 1.18, 1],
+      transition: { duration: 0.5, delay: i * 0.028, ease: 'easeOut' },
+    });
+  }, [pulseKey, filled, i, controls, reduce]);
+
+  const arrowSize = Math.max(6, size - 2);
+  const dotSize = Math.max(3, Math.round(size / 3));
+
   return (
-    <div
-      title={title}
+    <motion.div
+      title={`${iso}${filled ? ' — checked in' : ''}`}
+      animate={controls}
       style={{
         width: size,
         height: size,
@@ -305,8 +338,19 @@ function DayCell({
         outline: isToday ? '1px solid rgba(234, 228, 214, 0.55)' : 'none',
         outlineOffset: isToday ? 1 : 0,
         flex: '0 0 auto',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
-    />
+    >
+      {filled ? (
+        isNewest ? (
+          <NewestDot size={dotSize} />
+        ) : (
+          <ThinArrow size={arrowSize} weight={1.6} />
+        )
+      ) : null}
+    </motion.div>
   );
 }
 
@@ -346,12 +390,14 @@ function UltraCounterRow({
   counter,
   history,
   pulsing,
+  pulseKey,
   today,
   onCheckIn,
 }: {
   counter: CounterRow;
   history: Set<string> | undefined;
   pulsing: boolean;
+  pulseKey: number;
   today: string;
   onCheckIn: () => Promise<boolean>;
 }) {
@@ -362,6 +408,14 @@ function UltraCounterRow({
     () => computeRecentDays(today, ULTRA_STRIP_LEN, days),
     [today, days],
   );
+  // Rightmost filled cell = newest within this window. Every arrow points
+  // "toward" this one; in 1D that just means every arrow faces right.
+  const newestIdx = useMemo(() => {
+    for (let i = cells.length - 1; i >= 0; i--) {
+      if (cells[i]?.filled) return i;
+    }
+    return -1;
+  }, [cells]);
 
   return (
     <motion.div
@@ -388,15 +442,18 @@ function UltraCounterRow({
             </div>
             <UltraPlusOneButton checkedToday={checkedToday} onCheckIn={onCheckIn} />
           </div>
-          <div className="flex items-center gap-[2px]">
-            {cells.map((c) => (
-              <DayCell
+          <div className="flex items-center gap-[2px]" style={{ perspective: 300 }}>
+            {cells.map((c, i) => (
+              <UltraArrowCell
                 key={c.iso}
+                i={i}
+                iso={c.iso}
                 filled={c.filled}
                 isToday={c.isToday}
+                isNewest={i === newestIdx}
                 fillHex={current.hex}
                 size={10}
-                title={`${c.iso}${c.filled ? ' — checked in' : ''}`}
+                pulseKey={pulseKey}
               />
             ))}
           </div>
@@ -407,15 +464,21 @@ function UltraCounterRow({
           <div className="flex-1 min-w-0">
             <UltraRowMeta counter={counter} beltName={current.name} fillHex={current.hex} />
           </div>
-          <div className="flex items-center gap-[3px] flex-shrink-0">
-            {cells.map((c) => (
-              <DayCell
+          <div
+            className="flex items-center gap-[3px] flex-shrink-0"
+            style={{ perspective: 400 }}
+          >
+            {cells.map((c, i) => (
+              <UltraArrowCell
                 key={c.iso}
+                i={i}
+                iso={c.iso}
                 filled={c.filled}
                 isToday={c.isToday}
+                isNewest={i === newestIdx}
                 fillHex={current.hex}
                 size={12}
-                title={`${c.iso}${c.filled ? ' — checked in' : ''}`}
+                pulseKey={pulseKey}
               />
             ))}
           </div>
@@ -514,12 +577,14 @@ function CounterCard({
   counter,
   history,
   pulsing,
+  pulseKey,
   today,
   onCheckIn,
 }: {
   counter: CounterRow;
   history: Set<string> | undefined;
   pulsing: boolean;
+  pulseKey: number;
   today: string;
   onCheckIn: () => Promise<boolean>;
 }) {
@@ -660,7 +725,13 @@ function CounterCard({
           </motion.div>
         </div>
 
-        <Heatmap days={days} today={today} fillHex={current.hex} />
+        <Heatmap
+          days={days}
+          today={today}
+          fillHex={current.hex}
+          newestISO={counter.lastCheckIn}
+          pulseKey={pulseKey}
+        />
       </Card>
     </motion.div>
   );
@@ -675,16 +746,20 @@ function Heatmap({
   days,
   today,
   fillHex,
+  newestISO,
+  pulseKey,
 }: {
   days: Set<string>;
   today: string;
   fillHex: string;
+  newestISO: string | null;
+  pulseKey: number;
 }) {
   const WEEKS = 53;
   const [hover, setHover] = useState<{ day: string; filled: boolean; inFuture: boolean } | null>(
     null,
   );
-  const { columns, monthLabels } = useMemo(() => {
+  const { columns, monthLabels, gridStart } = useMemo(() => {
     // Anchor on today, parsed as local date (avoid TZ drift from `new Date(today)`).
     const [y, m, d] = today.split('-').map(Number) as [number, number, number];
     const anchor = new Date(y, m - 1, d);
@@ -727,8 +802,13 @@ function Heatmap({
       }
       cols.push(col);
     }
-    return { columns: cols, monthLabels: labels };
+    return { columns: cols, monthLabels: labels, gridStart: start };
   }, [today]);
+
+  const newestPos = useMemo(
+    () => positionOf(newestISO, gridStart, WEEKS),
+    [newestISO, gridStart],
+  );
 
   const CELL = 13;
   const GAP = 3;
@@ -757,7 +837,10 @@ function Heatmap({
             : `${days.size} ${days.size === 1 ? 'day' : 'days'}`}
         </span>
       </div>
-      <div ref={scrollRef} className="overflow-x-auto -mx-1 px-1">
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <div className="inline-block" onMouseLeave={() => setHover(null)}>
           {/* Month labels — positioned along the top row of cells. */}
           <div
@@ -784,10 +867,11 @@ function Heatmap({
               gridTemplateRows: `repeat(7, ${CELL}px)`,
             }}
           >
-            {columns.flatMap((col) =>
-              col.map((cell) => {
+            {columns.flatMap((col, w) =>
+              col.map((cell, r) => {
                 const filled = days.has(cell.day);
                 const isToday = cell.day === today;
+                const isNewest = cell.day === newestISO;
                 const isHovered = hover?.day === cell.day;
                 const outline = isHovered
                   ? '1px solid rgba(234, 228, 214, 0.85)'
@@ -795,8 +879,10 @@ function Heatmap({
                     ? '1px solid rgba(234, 228, 214, 0.55)'
                     : 'none';
                 return (
-                  <div
+                  <PulseCell
                     key={cell.day}
+                    filled={filled && !cell.inFuture}
+                    pulseKey={pulseKey}
                     title={`${cell.day}${filled ? ' — checked in' : ''}`}
                     className="rounded-[2px]"
                     onMouseEnter={() => setHover({ day: cell.day, filled, inFuture: cell.inFuture })}
@@ -811,8 +897,23 @@ function Heatmap({
                       outline,
                       outlineOffset: outline === 'none' ? 0 : 1,
                       opacity: cell.inFuture ? 0 : 1,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
-                  />
+                  >
+                    {filled && !cell.inFuture ? (
+                      <CompassArrow
+                        cellPos={{ c: w, r }}
+                        newestPos={newestPos}
+                        isNewest={isNewest}
+                        pulseKey={pulseKey}
+                        size={CELL - 3}
+                        weight={1.6}
+                        dotSize={4}
+                      />
+                    ) : null}
+                  </PulseCell>
                 );
               }),
             )}
@@ -921,12 +1022,14 @@ function CompactCounterCard({
   counter,
   history,
   pulsing,
+  pulseKey,
   today,
   onCheckIn,
 }: {
   counter: CounterRow;
   history: Set<string> | undefined;
   pulsing: boolean;
+  pulseKey: number;
   today: string;
   onCheckIn: () => Promise<boolean>;
 }) {
@@ -1040,7 +1143,13 @@ function CompactCounterCard({
           <span>{next ? `${next.threshold - counter.count} to go` : '∞'}</span>
         </div>
 
-        <MiniHeatmap days={days} today={today} fillHex={current.hex} />
+        <MiniHeatmap
+          days={days}
+          today={today}
+          fillHex={current.hex}
+          newestISO={counter.lastCheckIn}
+          pulseKey={pulseKey}
+        />
       </Card>
     </motion.div>
   );
@@ -1054,13 +1163,17 @@ function MiniHeatmap({
   days,
   today,
   fillHex,
+  newestISO,
+  pulseKey,
 }: {
   days: Set<string>;
   today: string;
   fillHex: string;
+  newestISO: string | null;
+  pulseKey: number;
 }) {
   const WEEKS = 5;
-  const columns = useMemo(() => {
+  const { columns, gridStart } = useMemo(() => {
     const [y, m, d] = today.split('-').map(Number) as [number, number, number];
     const anchor = new Date(y, m - 1, d);
     const todayDow = anchor.getDay();
@@ -1079,8 +1192,13 @@ function MiniHeatmap({
       }
       cols.push(col);
     }
-    return cols;
+    return { columns: cols, gridStart: start };
   }, [today]);
+
+  const newestPos = useMemo(
+    () => positionOf(newestISO, gridStart, WEEKS),
+    [newestISO, gridStart],
+  );
 
   const CELL = 10;
   const GAP = 2;
@@ -1107,13 +1225,16 @@ function MiniHeatmap({
           width: WEEKS * (CELL + GAP) - GAP,
         }}
       >
-        {columns.flatMap((col) =>
-          col.map((cell) => {
+        {columns.flatMap((col, w) =>
+          col.map((cell, r) => {
             const filled = days.has(cell.day);
             const isToday = cell.day === today;
+            const isNewest = cell.day === newestISO;
             return (
-              <div
+              <PulseCell
                 key={cell.day}
+                filled={filled && !cell.inFuture}
+                pulseKey={pulseKey}
                 title={
                   cell.inFuture ? cell.day : `${cell.day}${filled ? ' — checked in' : ''}`
                 }
@@ -1129,8 +1250,23 @@ function MiniHeatmap({
                   outline: isToday ? '1px solid rgba(234, 228, 214, 0.55)' : 'none',
                   outlineOffset: 1,
                   opacity: cell.inFuture ? 0 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
-              />
+              >
+                {filled && !cell.inFuture ? (
+                  <CompassArrow
+                    cellPos={{ c: w, r }}
+                    newestPos={newestPos}
+                    isNewest={isNewest}
+                    pulseKey={pulseKey}
+                    size={CELL - 3}
+                    weight={1.6}
+                    dotSize={3}
+                  />
+                ) : null}
+              </PulseCell>
             );
           }),
         )}

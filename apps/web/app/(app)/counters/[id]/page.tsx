@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
+import { CompassArrow, PulseCell, PulseCellButton, positionOf } from '../arrows';
 import { beltFor, categoryFor, todayLocal } from '../belts';
 
 const EMPTY_DAYS: Set<string> = new Set();
@@ -67,6 +68,9 @@ function DetailBody({
   const [armed, setArmed] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [flashDay, setFlashDay] = useState<string | null>(null);
+  // Bumped on each successful check-in so every strip's compass field can
+  // vibrate before re-pointing at the new anchor.
+  const [pulseKey, setPulseKey] = useState(0);
 
   async function confirm() {
     if (!armed || submitting) return;
@@ -76,6 +80,7 @@ function DetailBody({
       const row = await checkIn(counter.id, day);
       if (!row) return;
       setFlashDay(day);
+      setPulseKey((k) => k + 1);
       setTimeout(() => setFlashDay((v) => (v === day ? null : v)), 900);
       setArmed(null);
     } finally {
@@ -137,6 +142,8 @@ function DetailBody({
             strip={s}
             fillHex={current.hex}
             today={today}
+            newestISO={counter.lastCheckIn}
+            pulseKey={pulseKey}
             armed={armed}
             submitting={submitting}
             flashDay={flashDay}
@@ -299,6 +306,8 @@ interface Strip {
   columns: Cell[][];
   /** Column-position → month label, emitted only at first-Sunday-of-month. */
   monthLabels: { col: number; label: string }[];
+  /** Leftmost-Sunday anchor — used to place the compass target within this strip. */
+  start: Date;
 }
 
 /**
@@ -397,6 +406,7 @@ function buildStrip(
     label: `${fmt(fy, fm)} → ${fmt(ly, lm)}`,
     columns,
     monthLabels,
+    start,
   };
 }
 
@@ -404,6 +414,8 @@ function StripBlock({
   strip,
   fillHex,
   today,
+  newestISO,
+  pulseKey,
   armed,
   submitting,
   flashDay,
@@ -414,6 +426,8 @@ function StripBlock({
   strip: Strip;
   fillHex: string;
   today: string;
+  newestISO: string | null;
+  pulseKey: number;
   armed: string | null;
   submitting: boolean;
   flashDay: string | null;
@@ -427,6 +441,13 @@ function StripBlock({
   // Armed cell is a strip-local concern only if this strip contains it —
   // the confirm prompt is contextual to the row you clicked.
   const armedHere = armed !== null && strip.columns.some((col) => col.some((c) => c.iso === armed));
+  // Position of the newest check-in inside THIS strip. Null if the newest
+  // day predates or postdates the strip's window — earlier strips just get
+  // arrows all pointing at the top-right cell.
+  const newestPos = useMemo(
+    () => positionOf(newestISO, strip.start, WEEKS_PER_STRIP),
+    [newestISO, strip.start],
+  );
 
   // Anchor the strip's horizontal scroll on its rightmost (most recent)
   // column on mount so the user lands on the latest activity in this
@@ -477,7 +498,10 @@ function StripBlock({
           viewport; the wrapper scrolls horizontally when narrower than
           the grid, keeping the "specific counter horizontally scrollable"
           contract on mobile. */}
-      <div ref={scrollRef} className="overflow-x-auto -mx-1 px-1">
+      <div
+        ref={scrollRef}
+        className="overflow-x-auto -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
         <div style={{ width: WEEKS_PER_STRIP * 13 + (WEEKS_PER_STRIP - 1) * 3 }}>
           {/* Month label row — same trick as the card mini-heatmap. */}
           <div
@@ -503,11 +527,12 @@ function StripBlock({
             }}
             onMouseLeave={() => setHover(null)}
           >
-        {strip.columns.flatMap((col) =>
-          col.map((c) => {
+        {strip.columns.flatMap((col, w) =>
+          col.map((c, r) => {
             const isHovered = hover?.iso === c.iso;
             const isArmed = armed === c.iso;
             const isFlashing = flashDay === c.iso;
+            const isNewest = c.iso === newestISO;
             const backfillable = !c.filled && !c.inFuture;
             const outline = isArmed
               ? '1.5px solid #E63946'
@@ -529,13 +554,29 @@ function StripBlock({
               backgroundColor: bg,
               outline,
               outlineOffset: outline === 'none' ? 0 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             } as const;
             const handleEnter = () =>
               setHover({ iso: c.iso, filled: c.filled, inFuture: c.inFuture });
+            const arrow = c.filled && !c.inFuture ? (
+              <CompassArrow
+                cellPos={{ c: w, r }}
+                newestPos={newestPos}
+                isNewest={isNewest}
+                pulseKey={pulseKey}
+                size={10}
+                weight={1.6}
+                dotSize={4}
+              />
+            ) : null;
             if (backfillable) {
               return (
-                <button
+                <PulseCellButton
                   key={c.iso}
+                  filled={c.filled}
+                  pulseKey={pulseKey}
                   type="button"
                   aria-label={
                     isArmed ? `Confirm backfill for ${c.iso}` : `Backfill ${c.iso}`
@@ -552,13 +593,17 @@ function StripBlock({
               );
             }
             return (
-              <div
+              <PulseCell
                 key={c.iso}
+                filled={c.filled}
+                pulseKey={pulseKey}
                 title={`${c.iso}${c.filled ? ' — checked in' : ''}`}
                 className={`aspect-square rounded-[2px] ${isFlashing ? 'animate-pulse' : ''}`}
                 onMouseEnter={handleEnter}
                 style={commonStyle}
-              />
+              >
+                {arrow}
+              </PulseCell>
             );
           }),
         )}
