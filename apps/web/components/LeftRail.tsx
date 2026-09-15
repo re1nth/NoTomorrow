@@ -147,22 +147,22 @@ export function LeftRail({
 
       {/* Desktop rail. */}
       <aside
-        className={`hidden md:flex flex-col border-r border-charcoal/10 bg-canvas-soft py-6 transition-[width] duration-200 ease-out ${
-          collapsed ? 'w-16 px-2 items-center' : 'w-48 px-6'
+        className={`hidden md:flex flex-col border-r border-charcoal/10 bg-canvas-soft py-6 px-3 transition-[width] duration-200 ease-out ${
+          collapsed ? 'w-16' : 'w-48'
         }`}
       >
         <div
-          className={`flex items-center mb-4 ${collapsed ? 'justify-center' : 'justify-between'}`}
+          className={`flex items-center h-10 mb-4 ${collapsed ? 'justify-center' : 'justify-between'}`}
         >
           {collapsed ? null : (
-            <div className="font-display text-lg tracking-wider">Plus One</div>
+            <div className="font-display text-lg tracking-wider pl-2">Plus One</div>
           )}
           <button
             type="button"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
             aria-expanded={!collapsed}
             onClick={toggleCollapsed}
-            className="w-8 h-8 flex items-center justify-center rounded-md text-charcoal/60 hover:text-glove hover:bg-charcoal/5 transition-colors"
+            className="w-10 h-10 flex items-center justify-center rounded-md text-charcoal/60 hover:text-glove hover:bg-charcoal/5 transition-colors"
           >
             <ChevronIcon
               className={`w-4 h-4 transition-transform ${collapsed ? 'rotate-180' : ''}`}
@@ -172,17 +172,11 @@ export function LeftRail({
         <nav className="flex flex-col gap-2 flex-1 w-full">
           <NavLinks pathname={pathname} collapsed={collapsed} />
         </nav>
-        <div
-          className={`w-full ${
-            collapsed ? 'mt-4 flex justify-center' : 'pt-4 border-t border-charcoal/10'
-          }`}
-        >
+        <div className="w-full pt-4 border-t border-charcoal/10">
           <GitHubRow collapsed={collapsed} />
         </div>
         {signOutAction ? (
-          <div
-            className={`w-full ${collapsed ? 'mt-3 flex justify-center' : 'pt-3'}`}
-          >
+          <div className="w-full pt-3">
             <SignOutRow action={signOutAction} collapsed={collapsed} />
           </div>
         ) : null}
@@ -199,11 +193,11 @@ function GitHubRow({ collapsed }: { collapsed: boolean }) {
       rel="noopener noreferrer"
       aria-label="Contribute on GitHub"
       title={collapsed ? 'Contribute on GitHub' : undefined}
-      className={`flex items-center gap-3 rounded-md text-sm font-display uppercase tracking-wider text-charcoal/60 hover:text-glove transition-colors ${
-        collapsed ? 'justify-center h-10 w-10' : 'px-1 py-1 w-full'
-      }`}
+      className="flex items-center h-10 w-full rounded-md text-sm font-display uppercase tracking-wider text-charcoal/60 hover:text-glove transition-colors"
     >
-      <GitHubIcon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+      <span className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+        <GitHubIcon className="w-5 h-5" aria-hidden="true" />
+      </span>
       {collapsed ? null : <span>GitHub</span>}
     </a>
   );
@@ -217,16 +211,16 @@ function SignOutRow({
   collapsed: boolean;
 }) {
   return (
-    <form action={action} className={collapsed ? undefined : 'w-full'}>
+    <form action={action} className="w-full">
       <button
         type="submit"
         aria-label="Sign out"
         title={collapsed ? 'Sign out' : undefined}
-        className={`flex items-center gap-3 rounded-md text-sm font-display uppercase tracking-wider text-charcoal/60 hover:text-glove transition-colors ${
-          collapsed ? 'justify-center h-10 w-10' : 'px-1 py-1 w-full'
-        }`}
+        className="flex items-center h-10 w-full rounded-md text-sm font-display uppercase tracking-wider text-charcoal/60 hover:text-glove transition-colors"
       >
-        <SignOutIcon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+        <span className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+          <SignOutIcon className="w-5 h-5" aria-hidden="true" />
+        </span>
         {collapsed ? null : <span>Sign out</span>}
       </button>
     </form>
@@ -259,19 +253,19 @@ function NavLinks({
             onClick={onNavigate}
             aria-label={collapsed ? l.label : undefined}
             title={collapsed ? l.label : undefined}
-            className={`flex items-center gap-3 rounded-md text-sm font-display uppercase tracking-wider transition-colors ${
-              collapsed ? 'justify-center h-10 w-10 self-center' : 'px-1 py-1'
-            } ${active ? 'text-glove' : 'text-charcoal hover:text-glove'} ${
-              collapsed && active ? 'bg-charcoal/5' : ''
-            }`}
+            className={`flex items-center h-10 rounded-md text-sm font-display uppercase tracking-wider transition-colors ${
+              active ? 'text-glove' : 'text-charcoal hover:text-glove'
+            } ${collapsed && active ? 'bg-charcoal/5' : ''}`}
           >
-            <l.Icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
+            <span className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+              <l.Icon className="w-5 h-5" aria-hidden="true" />
+            </span>
             {collapsed ? null : (
               <>
                 <span>{l.label}</span>
                 {showTimerChip ? (
                   <span
-                    className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-glove/10 text-glove text-[10px] tabular-nums normal-case tracking-normal"
+                    className="ml-auto mr-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-glove/10 text-glove text-[10px] tabular-nums normal-case tracking-normal"
                     aria-label={`Pomodoro running, ${formatMMSS(remainingMs)} remaining`}
                   >
                     <span
