@@ -70,22 +70,31 @@ export default function PomodoroPage() {
         }
       />
 
-      <div className="mx-auto max-w-2xl space-y-6">
-        {breakNotice ? (
-          <div
-            className="rounded-glove border border-glove-deep/30 bg-canvas-soft px-4 py-3 text-sm text-charcoal shadow-sm"
-            role="status"
-            aria-live="polite"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span>{breakNotice}</span>
-              <Button variant="ghost" size="sm" onClick={clearBreakNotice}>
+      {breakNotice ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/45 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="break-notice-title"
+        >
+          <div className="w-full max-w-sm rounded-glove border border-glove-deep/30 bg-canvas p-5 text-center shadow-xl">
+            <h2
+              id="break-notice-title"
+              className="font-display text-xl text-charcoal"
+            >
+              Take a break
+            </h2>
+            <p className="mt-3 text-sm text-charcoal-soft">{breakNotice}</p>
+            <div className="mt-5 flex justify-center">
+              <Button variant="primary" onClick={clearBreakNotice}>
                 OK
               </Button>
             </div>
           </div>
-        ) : null}
+        </div>
+      ) : null}
 
+      <div className="mx-auto max-w-2xl space-y-6">
         <Card>
           <div className="flex flex-col items-center gap-6 py-6">
             <div
