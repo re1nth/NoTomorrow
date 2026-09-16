@@ -6,7 +6,7 @@ import { usePomodoro } from '@/components/PomodoroStore';
 import { Button, Card } from '@/lib/ui';
 
 const PRESETS = [
-  { label: '30 min', minutes: 30 },
+  { label: '25 min', minutes: 25 },
   { label: '45 min', minutes: 45 },
   { label: '1 hr', minutes: 60 },
 ] as const;

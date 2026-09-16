@@ -87,8 +87,8 @@ export function usePomodoro(): PomodoroStore {
  * regains focus; the interval just recomputes `endsAt - Date.now()`.
  */
 export function PomodoroProvider({ children }: { children: ReactNode }) {
-  const [totalMs, setTotalMs] = useState<number>(30 * 60_000);
-  const [remainingMs, setRemainingMs] = useState<number>(30 * 60_000);
+  const [totalMs, setTotalMs] = useState<number>(25 * 60_000);
+  const [remainingMs, setRemainingMs] = useState<number>(25 * 60_000);
   const [mode, setMode] = useState<PomodoroMode>('idle');
   const endsAtRef = useRef<number | null>(null);
 
