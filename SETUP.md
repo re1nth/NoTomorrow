@@ -96,6 +96,7 @@ Use this shape:
 
 ```bash
 NOTOMORROW_AUTH=cloud
+NOTOMORROW_SERVICE_ROLE=web
 SQLITE_DB_PATH=/home/deploy/notomorrow-data/notomorrow.db
 AUTH_SECRET=<openssl-rand-hex-32>
 SOCIAL_MESSAGE_KEY=<openssl-rand-hex-32>
@@ -145,6 +146,43 @@ StandardError=journal
 [Install]
 WantedBy=multi-user.target
 ```
+
+## Service Boundaries
+
+NoTomorrow is a modular monolith: one repository and one build artifact, but it
+can be deployed as separate path-routed services.
+
+Set `NOTOMORROW_SERVICE_ROLE` per deployment:
+
+| Role | Serves |
+| --- | --- |
+| `web` | Main app, auth, counters, profile, static assets. Rejects social/message APIs. |
+| `social` | `/api/friends` and `/api/friends/*`, plus `/api/health`. |
+| `messaging` | `/api/messages/*`, plus `/api/health`. |
+| `all` | Everything. Use for local development. |
+
+Route traffic at nginx/load-balancer level on the same public origin so Auth.js
+cookies stay same-origin:
+
+```nginx
+location /api/friends {
+    proxy_pass http://127.0.0.1:3001;
+}
+
+location /api/messages {
+    proxy_pass http://127.0.0.1:3002;
+}
+
+location / {
+    proxy_pass http://127.0.0.1:3000;
+}
+```
+
+Each service can use the same release artifact and shared env file, changing
+only `NOTOMORROW_SERVICE_ROLE`, `PORT`, and systemd service name. Keep them on
+the same `SQLITE_DB_PATH` only while SQLite is still the production database;
+at higher write volume, move the shared data layer to Postgres before splitting
+the codebase further.
 
 ## First Deployment
 
