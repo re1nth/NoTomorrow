@@ -143,6 +143,18 @@ jobs:
           CURRENT_LINK="$DEPLOY_PATH/current"
           SHARED_DIR="$DEPLOY_PATH/shared"
           ENV_FILE="$SHARED_DIR/.env.local"
+          PREVIOUS_RELEASE=""
+
+          rollback() {
+            if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
+              echo "Rolling back to $PREVIOUS_RELEASE" >&2
+              ln -sfn "$PREVIOUS_RELEASE" "$CURRENT_LINK.tmp"
+              mv -Tf "$CURRENT_LINK.tmp" "$CURRENT_LINK"
+              sudo systemctl restart "$SERVICE" || true
+            else
+              echo "No previous release available for rollback" >&2
+            fi
+          }
 
           step "Prepare release directories"
           mkdir -p "$RELEASES_DIR" "$SHARED_DIR"
@@ -179,16 +191,28 @@ jobs:
           '
 
           step "Activate release"
+          if [ -L "$CURRENT_LINK" ]; then
+            PREVIOUS_RELEASE=$(readlink -f "$CURRENT_LINK")
+          fi
           ln -sfn "$RELEASE_DIR" "$CURRENT_LINK.tmp"
           mv -Tf "$CURRENT_LINK.tmp" "$CURRENT_LINK"
 
           step "Restart service"
-          sudo systemctl restart "$SERVICE"
+          if ! sudo systemctl restart "$SERVICE"; then
+            rollback
+            exit 1
+          fi
           sleep 3
-          systemctl is-active --quiet "$SERVICE"
+          if ! systemctl is-active --quiet "$SERVICE"; then
+            rollback
+            exit 1
+          fi
 
           step "Health check"
-          curl -sfI "$HEALTH_URL" >/dev/null
+          if ! curl -sfI "$HEALTH_URL" >/dev/null; then
+            rollback
+            exit 1
+          fi
 
           step "Prune old releases"
           find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d \
