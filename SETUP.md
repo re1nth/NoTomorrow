@@ -98,6 +98,7 @@ Use this shape:
 NOTOMORROW_AUTH=cloud
 SQLITE_DB_PATH=/home/deploy/notomorrow-data/notomorrow.db
 AUTH_SECRET=<openssl-rand-hex-32>
+SOCIAL_MESSAGE_KEY=<openssl-rand-hex-32>
 AUTH_TRUST_HOST=true
 AUTH_URL=https://<your-domain>
 AUTH_GOOGLE_ID=
@@ -112,7 +113,9 @@ AUTH_FACEBOOK_SECRET=
 ```
 
 Only set OAuth provider IDs and secrets for providers you use. The login UI
-hides providers with missing credentials.
+hides providers with missing credentials. `SOCIAL_MESSAGE_KEY` encrypts direct
+messages at rest; keep it stable and backed up, because rotating it without a
+re-encryption step makes existing messages unreadable.
 
 ## systemd Service
 

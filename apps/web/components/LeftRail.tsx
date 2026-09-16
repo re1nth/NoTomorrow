@@ -22,6 +22,7 @@ const links: readonly NavLink[] = [
   { href: '/counters', label: 'Counters', Icon: CountersIcon },
   { href: '/pomodoro', label: 'Pomodoro', Icon: PomodoroIcon },
   { href: '/discover', label: 'Discover', Icon: DiscoverIcon },
+  { href: '/social', label: 'Social', Icon: SocialIcon },
   { href: '/profile', label: 'Profile', Icon: ProfileIcon },
 ] as const;
 
@@ -333,6 +334,25 @@ function DiscoverIcon(props: SVGProps<SVGSVGElement>) {
     >
       <circle cx="12" cy="12" r="9" />
       <polygon points="15.5 8.5 10.5 10.5 8.5 15.5 13.5 13.5 15.5 8.5" />
+    </svg>
+  );
+}
+
+function SocialIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" />
+      <circle cx="10" cy="7" r="4" />
+      <path d="M21 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M17 3.13a4 4 0 0 1 0 7.75" />
     </svg>
   );
 }
