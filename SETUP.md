@@ -40,7 +40,7 @@ Add these repository variables:
 | `DEPLOY_PORT` | `22` | Optional SSH port. Defaults to `22` when empty. |
 | `DEPLOY_PATH` | `/home/deploy/notomorrow` | Absolute path to the app deployment directory on the droplet. |
 | `DEPLOY_SERVICE` | `notomorrow.service` | Optional systemd service name. Defaults to `notomorrow.service` when empty. |
-| `HEALTH_URL` | `http://127.0.0.1:3000/` | Optional local health URL checked after restart. |
+| `HEALTH_URL` | `http://127.0.0.1:3000/api/health` | Optional local health URL checked after restart. |
 
 If you use GitHub Environments, create a `production` environment and keep the
 same secrets and variables available to it, or leave them at repository scope.
@@ -158,3 +158,10 @@ After the secrets and variables are configured:
 
 Manual deployments can be run from the `Actions` tab with `Run workflow` after
 selecting the `main` branch.
+
+## Health Checks
+
+The deployment workflow checks `/api/health` by default. That endpoint verifies
+the app can resolve its SQLite configuration and execute a trivial DB query.
+Production still requires `SQLITE_DB_PATH`; local development and tests fall
+back to `apps/web/.data/notomorrow-dev.db` if it is unset.

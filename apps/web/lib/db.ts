@@ -12,7 +12,10 @@
  * The proxy keeps construction lazy so `next build`'s collect-page-data pass
  * never opens the SQLite file.
  */
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import type { DrizzleDatabase } from '@notomorrow/db-sqlite';
+import { sqliteDbPath } from './db-config';
 // Schemas only — no native deps. Webpack compiles via transpilePackages and
 // the resulting JS object is the SAME instance route handlers see through
 // their `@notomorrow/db-sqlite` imports, so `db.query.users.findFirst` and
@@ -29,22 +32,37 @@ declare global {
   function __non_webpack_require__<T = unknown>(mod: string): T;
 }
 
+function migrationsDir(): string {
+  const candidates = [
+    path.resolve(process.cwd(), '..', '..', 'packages', 'db-sqlite', 'migrations'),
+    path.resolve(process.cwd(), 'packages', 'db-sqlite', 'migrations'),
+  ];
+  const found = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!found) {
+    throw new Error(`Could not locate db-sqlite migrations from ${process.cwd()}`);
+  }
+  return found;
+}
+
 function build(): DrizzleDatabase {
   if (global.__notomorrowDb) return global.__notomorrowDb;
-  const filePath = process.env.SQLITE_DB_PATH;
-  if (!filePath) {
-    throw new Error('SQLITE_DB_PATH must be set');
-  }
+  const filePath = sqliteDbPath();
   const Database = __non_webpack_require__<
     new (path: string) => { pragma(s: string): unknown }
   >('better-sqlite3');
   const { drizzle } = __non_webpack_require__<{
     drizzle: (db: unknown, opts: { schema: unknown }) => DrizzleDatabase;
   }>('drizzle-orm/better-sqlite3');
+  const { migrate } = __non_webpack_require__<{
+    migrate: (db: unknown, opts: { migrationsFolder: string }) => void;
+  }>('drizzle-orm/better-sqlite3/migrator');
   const sqlite = new Database(filePath);
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('synchronous = NORMAL');
   sqlite.pragma('foreign_keys = ON');
+  if (process.env.NODE_ENV !== 'production') {
+    migrate(drizzle(sqlite, { schema }), { migrationsFolder: migrationsDir() });
+  }
   const created = drizzle(sqlite, { schema });
   if (process.env.NODE_ENV !== 'production') {
     global.__notomorrowDb = created;

@@ -119,7 +119,7 @@ jobs:
 
           SSH_PORT="${DEPLOY_PORT:-22}"
           REMOTE_SERVICE="${SERVICE:-notomorrow.service}"
-          REMOTE_HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/}"
+          REMOTE_HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/api/health}"
           ARTIFACT="notomorrow-${GITHUB_SHA}.tar.gz"
           RELEASE_ID="${GITHUB_SHA}"
 
