@@ -29,6 +29,8 @@ export default function PomodoroPage() {
     pause,
     stop,
     dismissEnded,
+    breakNotice,
+    clearBreakNotice,
   } = usePomodoro();
   const [customInput, setCustomInput] = useState<string>('');
 
@@ -69,6 +71,21 @@ export default function PomodoroPage() {
       />
 
       <div className="mx-auto max-w-2xl space-y-6">
+        {breakNotice ? (
+          <div
+            className="rounded-glove border border-glove-deep/30 bg-canvas-soft px-4 py-3 text-sm text-charcoal shadow-sm"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span>{breakNotice}</span>
+              <Button variant="ghost" size="sm" onClick={clearBreakNotice}>
+                OK
+              </Button>
+            </div>
+          </div>
+        ) : null}
+
         <Card>
           <div className="flex flex-col items-center gap-6 py-6">
             <div

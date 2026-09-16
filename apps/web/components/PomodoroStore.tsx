@@ -13,6 +13,9 @@ import {
 
 export type PomodoroMode = 'idle' | 'running' | 'paused' | 'ended';
 
+const REQUIRED_BREAK_MS = 2 * 60_000;
+const BREAK_MESSAGE = "You've done great this round, you deserve a break";
+
 interface DesktopBridge {
   pomodoroBuzz?: (opts?: { label?: string }) => void;
   pomodoroClear?: () => void;
@@ -62,12 +65,14 @@ interface PomodoroStore {
   totalMs: number;
   remainingMs: number;
   mode: PomodoroMode;
+  breakNotice: string | null;
   setPreset: (minutes: number) => void;
   setCustom: (minutes: number) => void;
   start: () => void;
   pause: () => void;
   stop: () => void;
   dismissEnded: () => void;
+  clearBreakNotice: () => void;
 }
 
 const PomodoroContext = createContext<PomodoroStore | null>(null);
@@ -90,7 +95,9 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   const [totalMs, setTotalMs] = useState<number>(25 * 60_000);
   const [remainingMs, setRemainingMs] = useState<number>(25 * 60_000);
   const [mode, setMode] = useState<PomodoroMode>('idle');
+  const [breakNotice, setBreakNotice] = useState<string | null>(null);
   const endsAtRef = useRef<number | null>(null);
+  const breakUntilRef = useRef<number>(0);
 
   const running = mode === 'running';
 
@@ -101,6 +108,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
       if (left <= 0) {
         setRemainingMs(0);
         setMode('ended');
+        breakUntilRef.current = Date.now() + REQUIRED_BREAK_MS;
         endsAtRef.current = null;
       } else {
         setRemainingMs(left);
@@ -118,7 +126,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       const send = () =>
         new Notification('Pomodoro finished', {
-          body: 'Time is up — take a breather.',
+          body: BREAK_MESSAGE,
         });
       if (Notification.permission === 'granted') {
         try {
@@ -164,10 +172,15 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const start = useCallback(() => {
+    if (Date.now() < breakUntilRef.current) {
+      setBreakNotice(BREAK_MESSAGE);
+      return;
+    }
     setRemainingMs((left) => {
       if (left <= 0) return left;
       endsAtRef.current = Date.now() + left;
       setMode('running');
+      setBreakNotice(null);
       desktopBridge()?.pomodoroClear?.();
       return left;
     });
@@ -195,19 +208,37 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     desktopBridge()?.pomodoroClear?.();
   }, [totalMs]);
 
+  const clearBreakNotice = useCallback(() => {
+    setBreakNotice(null);
+  }, []);
+
   const value = useMemo<PomodoroStore>(
     () => ({
       totalMs,
       remainingMs,
       mode,
+      breakNotice,
       setPreset,
       setCustom,
       start,
       pause,
       stop,
       dismissEnded,
+      clearBreakNotice,
     }),
-    [totalMs, remainingMs, mode, setPreset, setCustom, start, pause, stop, dismissEnded],
+    [
+      totalMs,
+      remainingMs,
+      mode,
+      breakNotice,
+      setPreset,
+      setCustom,
+      start,
+      pause,
+      stop,
+      dismissEnded,
+      clearBreakNotice,
+    ],
   );
 
   return <PomodoroContext.Provider value={value}>{children}</PomodoroContext.Provider>;
