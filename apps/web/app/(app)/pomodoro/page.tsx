@@ -6,7 +6,7 @@ import { usePomodoro } from '@/components/PomodoroStore';
 import { Button, Card } from '@/lib/ui';
 
 const PRESETS = [
-  { label: '30 min', minutes: 30 },
+  { label: '25 min', minutes: 25 },
   { label: '45 min', minutes: 45 },
   { label: '1 hr', minutes: 60 },
 ] as const;
@@ -29,6 +29,8 @@ export default function PomodoroPage() {
     pause,
     stop,
     dismissEnded,
+    breakNotice,
+    clearBreakNotice,
   } = usePomodoro();
   const [customInput, setCustomInput] = useState<string>('');
 
@@ -67,6 +69,30 @@ export default function PomodoroPage() {
           </span>
         }
       />
+
+      {breakNotice ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/45 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="break-notice-title"
+        >
+          <div className="w-full max-w-sm rounded-glove border border-glove-deep/30 bg-canvas p-5 text-center shadow-xl">
+            <h2
+              id="break-notice-title"
+              className="font-display text-xl text-charcoal"
+            >
+              Take a break
+            </h2>
+            <p className="mt-3 text-sm text-charcoal-soft">{breakNotice}</p>
+            <div className="mt-5 flex justify-center">
+              <Button variant="primary" onClick={clearBreakNotice}>
+                OK
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <div className="mx-auto max-w-2xl space-y-6">
         <Card>
