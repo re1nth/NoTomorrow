@@ -24,6 +24,15 @@ function unauthorized(err: unknown) {
   throw err;
 }
 
+function isUniqueConstraintError(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: unknown }).code === 'SQLITE_CONSTRAINT_UNIQUE'
+  );
+}
+
 export async function GET() {
   let user: { id: string };
   try {
@@ -54,14 +63,22 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  const [row] = await db
-    .insert(counters)
-    .values({
-      userId: user.id,
-      name: parsed.data.name,
-      count: parsed.data.initialCount,
-    })
-    .returning();
+  let row: typeof counters.$inferSelect | undefined;
+  try {
+    [row] = await db
+      .insert(counters)
+      .values({
+        userId: user.id,
+        name: parsed.data.name,
+        count: parsed.data.initialCount,
+      })
+      .returning();
+  } catch (err) {
+    if (isUniqueConstraintError(err)) {
+      return NextResponse.json({ error: 'counter name taken' }, { status: 409 });
+    }
+    throw err;
+  }
   if (!row) {
     return NextResponse.json({ error: 'insert failed' }, { status: 500 });
   }

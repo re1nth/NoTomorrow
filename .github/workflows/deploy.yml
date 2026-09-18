@@ -1,0 +1,224 @@
+name: Deploy
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 9.12.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm --filter web build
+        env:
+          NOTOMORROW_AUTH: cloud
+          SQLITE_DB_PATH: /tmp/notomorrow-ci.db
+          AUTH_SECRET: ci-only-auth-secret-ci-only-auth-secret
+          AUTH_TRUST_HOST: "true"
+          AUTH_URL: http://localhost:3000
+
+      - name: Package release
+        run: |
+          RELEASE_DIR="$(mktemp -d)"
+
+          cp -a apps/web/.next/standalone/. "$RELEASE_DIR/"
+          mkdir -p "$RELEASE_DIR/apps/web/.next"
+          cp -a apps/web/.next/static "$RELEASE_DIR/apps/web/.next/static"
+          cp -a apps/web/public "$RELEASE_DIR/apps/web/public"
+          mkdir -p "$RELEASE_DIR/packages/db-sqlite"
+          cp -a packages/db-sqlite/migrations "$RELEASE_DIR/packages/db-sqlite/migrations"
+
+          tar -czf "notomorrow-${GITHUB_SHA}.tar.gz" -C "$RELEASE_DIR" .
+
+      - name: Upload release artifact
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: notomorrow-release-${{ github.sha }}
+          path: notomorrow-${{ github.sha }}.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy:
+    name: Deploy production
+    runs-on: ubuntu-latest
+    needs: verify
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    environment: production
+
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: notomorrow-release-${{ github.sha }}
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@dc588b651fe13675774614f8e6a936a468676387 # v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+
+      - name: Trust deployment host
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Deploy on droplet
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_PORT: ${{ vars.DEPLOY_PORT }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+          SERVICE: ${{ vars.DEPLOY_SERVICE }}
+          HEALTH_URL: ${{ vars.HEALTH_URL }}
+        run: |
+          : "${DEPLOY_HOST:?DEPLOY_HOST repository variable is required}"
+          : "${DEPLOY_USER:?DEPLOY_USER repository variable is required}"
+          : "${DEPLOY_PATH:?DEPLOY_PATH repository variable is required}"
+
+          SSH_PORT="${DEPLOY_PORT:-22}"
+          REMOTE_SERVICE="${SERVICE:-notomorrow.service}"
+          REMOTE_HEALTH_URL="${HEALTH_URL:-http://127.0.0.1:3000/api/health}"
+          ARTIFACT="notomorrow-${GITHUB_SHA}.tar.gz"
+          RELEASE_ID="${GITHUB_SHA}"
+
+          scp -P "$SSH_PORT" "$ARTIFACT" "$DEPLOY_USER@$DEPLOY_HOST:/tmp/$ARTIFACT"
+          ssh -p "$SSH_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+            bash -s -- "$DEPLOY_PATH" "$REMOTE_SERVICE" "$REMOTE_HEALTH_URL" "/tmp/$ARTIFACT" "$RELEASE_ID" <<'REMOTE_DEPLOY'
+          set -euo pipefail
+
+          DEPLOY_PATH=$1
+          SERVICE=$2
+          HEALTH_URL=$3
+          ARTIFACT=$4
+          RELEASE_ID=$5
+
+          step() {
+            printf '\n==> %s\n' "$*"
+          }
+
+          RELEASES_DIR="$DEPLOY_PATH/releases"
+          RELEASE_DIR="$RELEASES_DIR/$RELEASE_ID"
+          CURRENT_LINK="$DEPLOY_PATH/current"
+          SHARED_DIR="$DEPLOY_PATH/shared"
+          ENV_FILE="$SHARED_DIR/.env.local"
+          PREVIOUS_RELEASE=""
+
+          rollback() {
+            if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
+              echo "Rolling back to $PREVIOUS_RELEASE" >&2
+              ln -sfn "$PREVIOUS_RELEASE" "$CURRENT_LINK.tmp"
+              mv -Tf "$CURRENT_LINK.tmp" "$CURRENT_LINK"
+              sudo systemctl restart "$SERVICE" || true
+            else
+              echo "No previous release available for rollback" >&2
+            fi
+          }
+
+          step "Prepare release directories"
+          mkdir -p "$RELEASES_DIR" "$SHARED_DIR"
+          rm -rf "$RELEASE_DIR"
+          mkdir -p "$RELEASE_DIR"
+
+          step "Unpack release artifact"
+          tar -xzf "$ARTIFACT" -C "$RELEASE_DIR"
+          rm -f "$ARTIFACT"
+          if [ ! -f "$ENV_FILE" ]; then
+            echo "Missing production env file at $ENV_FILE" >&2
+            exit 1
+          fi
+
+          step "Apply database migrations"
+          DB_PATH=$(grep -E '^SQLITE_DB_PATH=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"' || true)
+          if [ -z "$DB_PATH" ]; then
+            echo "SQLITE_DB_PATH not found in $ENV_FILE" >&2
+            exit 1
+          fi
+
+          cd "$RELEASE_DIR/apps/web"
+          DB_PATH="$DB_PATH" \
+          MIGRATIONS_DIR="$RELEASE_DIR/packages/db-sqlite/migrations" \
+          node -e '
+            const Database = require("better-sqlite3");
+            const { drizzle } = require("drizzle-orm/better-sqlite3");
+            const { migrate } = require("drizzle-orm/better-sqlite3/migrator");
+            const sqlite = new Database(process.env.DB_PATH);
+            sqlite.pragma("foreign_keys = ON");
+            migrate(drizzle(sqlite), { migrationsFolder: process.env.MIGRATIONS_DIR });
+            sqlite.close();
+            console.log("Migrations applied");
+          '
+
+          step "Activate release"
+          if [ -L "$CURRENT_LINK" ]; then
+            PREVIOUS_RELEASE=$(readlink -f "$CURRENT_LINK")
+          fi
+          ln -sfn "$RELEASE_DIR" "$CURRENT_LINK.tmp"
+          mv -Tf "$CURRENT_LINK.tmp" "$CURRENT_LINK"
+
+          step "Restart service"
+          if ! sudo systemctl restart "$SERVICE"; then
+            rollback
+            exit 1
+          fi
+          sleep 3
+          if ! systemctl is-active --quiet "$SERVICE"; then
+            rollback
+            exit 1
+          fi
+
+          step "Health check"
+          if ! curl -sfI "$HEALTH_URL" >/dev/null; then
+            rollback
+            exit 1
+          fi
+
+          step "Prune old releases"
+          find "$RELEASES_DIR" -mindepth 1 -maxdepth 1 -type d \
+            | sort -r \
+            | tail -n +6 \
+            | xargs -r rm -rf
+
+          printf '\nDeployed %s\n' "$RELEASE_ID"
+          REMOTE_DEPLOY

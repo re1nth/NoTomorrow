@@ -64,6 +64,13 @@
       "when": 1786320000000,
       "tag": "0008_drop_perf_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1786924800000,
+      "tag": "0009_social_messaging",
+      "breakpoints": true
     }
   ]
 }

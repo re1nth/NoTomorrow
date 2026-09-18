@@ -3,3 +3,4 @@ export * from './counters';
 export * from './counter-check-ins';
 export * from './auth';
 export * from './verification';
+export * from './social';

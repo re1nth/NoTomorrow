@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { counterCheckIns, counters } from '@notomorrow/db-sqlite';
 import { db } from '@/lib/db';
@@ -85,32 +85,37 @@ export async function POST(
     }
   }
 
-  const existing = await db.query.counterCheckIns.findFirst({
-    where: and(eq(counterCheckIns.counterId, id), eq(counterCheckIns.day, day)),
-    columns: { id: true },
+  const result = await db.transaction(async (tx) => {
+    const [inserted] = await tx
+      .insert(counterCheckIns)
+      .values({ counterId: id, userId: user.id, day })
+      .onConflictDoNothing()
+      .returning({ id: counterCheckIns.id });
+
+    if (!inserted) return { status: 'duplicate' as const };
+
+    const [updated] = await tx
+      .update(counters)
+      .set({
+        count: sql`${counters.count} + 1`,
+        lastCheckIn: sql`case when ${counters.lastCheckIn} is null or ${counters.lastCheckIn} < ${day} then ${day} else ${counters.lastCheckIn} end`,
+      })
+      .where(and(eq(counters.id, id), eq(counters.userId, user.id)))
+      .returning();
+
+    return { status: 'updated' as const, counter: updated };
   });
-  if (existing) {
+
+  if (result.status === 'duplicate') {
     return NextResponse.json(
       { error: isBackfill ? 'already checked in that day' : 'already checked in today', counter: row },
       { status: 409 },
     );
   }
 
-  const nextLastCheckIn =
-    !row.lastCheckIn || day > row.lastCheckIn ? day : row.lastCheckIn;
-  const [updated] = await db
-    .update(counters)
-    .set({ count: row.count + 1, lastCheckIn: nextLastCheckIn })
-    .where(eq(counters.id, id))
-    .returning();
+  const updated = result.counter;
   if (!updated) {
     return NextResponse.json({ error: 'update failed' }, { status: 500 });
   }
-  // Append to the history log so the heatmap can render. Unique
-  // (counter_id, day) index makes this idempotent under races.
-  await db
-    .insert(counterCheckIns)
-    .values({ counterId: id, userId: user.id, day })
-    .onConflictDoNothing();
   return NextResponse.json(updated);
 }

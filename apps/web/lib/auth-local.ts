@@ -10,9 +10,23 @@ import { users } from '@notomorrow/db-sqlite';
 import { db } from './db';
 import { UnauthorizedError, type AuthStrategy, type AuthUser } from './auth-strategy';
 
+async function ensureDevLocalUser(): Promise<string | null> {
+  if (process.env.NODE_ENV === 'production') return null;
+  const existing = await db.query.users.findFirst({ columns: { id: true } });
+  if (existing) return existing.id;
+  const [created] = await db
+    .insert(users)
+    .values({
+      handle: `dev-${crypto.randomUUID().slice(0, 8)}`,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+    })
+    .returning({ id: users.id });
+  return created?.id ?? null;
+}
+
 async function getUserId(): Promise<string | null> {
   const row = await db.query.users.findFirst();
-  return row?.id ?? null;
+  return row?.id ?? (await ensureDevLocalUser());
 }
 
 async function requireUser(): Promise<AuthUser> {
