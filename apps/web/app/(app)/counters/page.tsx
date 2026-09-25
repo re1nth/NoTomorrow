@@ -4,8 +4,6 @@ import { AnimatePresence, motion, useAnimationControls, useReducedMotion } from 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type SVGProps } from 'react';
-import { EasterEgg } from '@/components/EasterEgg';
-import { useEasterAccess } from '@/components/EasterAccessProvider';
 import { SectionTitle } from '@/components/SectionTitle';
 import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
@@ -66,7 +64,6 @@ export default function CountersPage() {
   // App Router soft navigations and ignore the ?category= hint.
   const router = useRouter();
   const searchParams = useSearchParams();
-  const easterEnabled = useEasterAccess();
   const rawCategory = searchParams?.get('category');
   const category: Category =
     rawCategory === 'Hanging' || rawCategory === 'Barrage' || rawCategory === 'Warmup'
@@ -108,7 +105,6 @@ export default function CountersPage() {
 
   return (
     <>
-      {easterEnabled ? <EasterEgg /> : null}
       <SectionTitle
         title="Counters"
         subtitle="One thread, one punch a day. Don't break the chain."
