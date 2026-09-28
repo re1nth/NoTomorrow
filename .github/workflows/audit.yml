@@ -1,0 +1,35 @@
+name: audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # --prod skips dev deps (happy-dom / vitest UI advisories don't
+      # ship to production). --audit-level=critical is the gate: it's
+      # the class of advisory that turned the Sep 2026 compromise into
+      # a root-level miner via a Next.js flight-protocol RCE. High and
+      # moderate advisories get surfaced by Dependabot's weekly PRs
+      # (.github/dependabot.yml) rather than by failing CI, since most
+      # currently-open highs are transitive and not reachable from our
+      # code paths.
+      - run: pnpm audit --audit-level=critical --prod

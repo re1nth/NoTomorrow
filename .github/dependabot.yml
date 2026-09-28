@@ -1,0 +1,35 @@
+version: 2
+updates:
+  # Web app — production surface. Any advisory here is what the audit
+  # workflow will fail on, so patch-level PRs here matter most.
+  - package-ecosystem: npm
+    directory: /apps/web
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    labels: [dependencies, web]
+    groups:
+      types:
+        patterns: ["@types/*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+
+  - package-ecosystem: npm
+    directory: /packages/db-sqlite
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels: [dependencies, db-sqlite]
+
+  - package-ecosystem: npm
+    directory: /packages/ui
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    labels: [dependencies, ui]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies, github-actions]

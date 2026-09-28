@@ -29,13 +29,23 @@ ssh root@<droplet-ip>
 # As root
 adduser --disabled-password --gecos "" deploy
 usermod -aG sudo deploy
+usermod -aG systemd-journal deploy   # read journalctl without sudo
 mkdir -p /home/deploy/.ssh
 cp /root/.ssh/authorized_keys /home/deploy/.ssh/authorized_keys
 chown -R deploy:deploy /home/deploy/.ssh
 chmod 700 /home/deploy/.ssh
 chmod 600 /home/deploy/.ssh/authorized_keys
-echo "deploy ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/deploy-nopasswd
+
+# NOPASSWD only for the one command scripts/deploy.sh needs. Any other
+# sudo (nginx reload, apt install, editing /etc) will prompt for the
+# deploy password — set one from the DigitalOcean web console before you
+# need it (`sudo passwd deploy` as root). This limits the blast radius
+# of a web-RCE: prior to Sep 2026 we ran `NOPASSWD:ALL` here and a
+# Next.js flight-protocol RCE turned into a root-level cryptominer in
+# minutes.
+echo "deploy ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart notomorrow.service" > /etc/sudoers.d/deploy-nopasswd
 chmod 440 /etc/sudoers.d/deploy-nopasswd
+visudo -c   # syntax check — sudo refuses to load a broken sudoers file
 ```
 
 Verify you can log in as `deploy` from a **second** Mac terminal before
@@ -55,12 +65,27 @@ sudo sed -i 's/^#\?PubkeyAuthentication.*/PubkeyAuthentication yes/' /etc/ssh/ss
 sudo sshd -t && sudo systemctl reload ssh
 ```
 
-Firewall — open only SSH, HTTP, HTTPS:
+Firewall — open only SSH, HTTP, HTTPS inbound; restrict outbound to
+what the app + apt + Let's Encrypt + OAuth actually need:
 
 ```bash
+# Inbound
+sudo ufw default deny incoming
 sudo ufw allow OpenSSH
+sudo ufw limit OpenSSH   # rate-limit brute-force attempts (6 conns / 30s per src)
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
+
+# Outbound — defense-in-depth. If a future RCE lands, non-standard C2
+# ports (like the port 8082 stage-2 fetch in the Sep 2026 incident) get
+# blocked. Not a silver bullet — a miner that uses HTTPS on 443 walks
+# through. Every new outbound dependency needs a matching rule.
+sudo ufw default deny outgoing
+sudo ufw allow out 53              # DNS
+sudo ufw allow out 123/udp          # NTP
+sudo ufw allow out 80/tcp           # apt mirrors, Let's Encrypt HTTP-01
+sudo ufw allow out 443/tcp          # pnpm registry, GitHub, OAuth providers, Let's Encrypt
+
 sudo ufw --force enable
 ```
 
@@ -353,10 +378,12 @@ git pull
 pnpm install --network-concurrency=4 --child-concurrency=2
 pnpm --filter web build  # add NODE_OPTIONS on 512 MB
 sudo systemctl restart notomorrow.service
-sudo journalctl -u notomorrow.service -n 20 --no-pager
+journalctl -u notomorrow.service -n 20 --no-pager  # no sudo — deploy is in systemd-journal group
 ```
 
-Wrap as `~/deploy.sh` for one-liner updates.
+Wrap as `~/deploy.sh` for one-liner updates. `scripts/deploy.sh` in the
+repo already does this and only needs `sudo` for the one whitelisted
+`systemctl restart` command.
 
 ## Backups
 
