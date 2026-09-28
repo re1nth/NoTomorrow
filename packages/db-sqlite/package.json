@@ -29,7 +29,7 @@
     "migrate:gen": "drizzle-kit generate"
   },
   "dependencies": {
-    "better-sqlite3": "^11.5.0",
+    "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.36.4"
   },
   "devDependencies": {
