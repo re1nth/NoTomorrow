@@ -92,7 +92,7 @@ vi.mock('@/lib/db', () => {
     counterCheckIns: { findFirst: async () => state.counterCheckIns[0] ?? null },
   };
 
-  const db = {
+  const db: Record<string, unknown> = {
     query: finders,
     select: (_cols?: unknown) => ({
       from: (t: unknown) => {
@@ -105,8 +105,21 @@ vi.mock('@/lib/db', () => {
         const tableName = inferTableName(t);
         const row: Record<string, unknown> = { id: newId(), ...vals };
         let persisted = false;
+        const assertInsertable = () => {
+          if (
+            tableName === 'counters' &&
+            state.counters.some(
+              (existing) => existing.userId === vals.userId && existing.name === vals.name,
+            )
+          ) {
+            const err = new Error('unique constraint failed') as Error & { code: string };
+            err.code = 'SQLITE_CONSTRAINT_UNIQUE';
+            throw err;
+          }
+        };
         const persist = () => {
           if (persisted) return;
+          assertInsertable();
           rowsFor(tableName).push(row);
           persisted = true;
         };
@@ -134,6 +147,7 @@ vi.mock('@/lib/db', () => {
         };
       },
     }),
+    transaction: async <T>(fn: (tx: Record<string, unknown>) => Promise<T>) => fn(db),
     update: () => ({
       set: () => ({
         where: () => ({ returning: async () => [{}] }),

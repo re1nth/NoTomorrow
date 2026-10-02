@@ -28,7 +28,7 @@ declare global {
 }
 
 export async function requireUserOrTest(): Promise<AuthUser> {
-  if (global.__testUserId) {
+  if (process.env.NODE_ENV === 'test' && global.__testUserId) {
     return { id: global.__testUserId, timezone: 'UTC' };
   }
   return requireUser();

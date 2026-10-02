@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { counterCheckIns, counters } from '@notomorrow/db-sqlite';
 import { db } from '@/lib/db';
@@ -34,6 +34,7 @@ export async function GET(
   const rows = await db
     .select({ day: counterCheckIns.day })
     .from(counterCheckIns)
-    .where(eq(counterCheckIns.counterId, id));
+    .where(eq(counterCheckIns.counterId, id))
+    .orderBy(asc(counterCheckIns.day));
   return NextResponse.json({ days: rows.map((r) => r.day) });
 }

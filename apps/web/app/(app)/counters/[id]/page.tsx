@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import { type CounterRow, useCounters } from '@/components/CountersStore';
 import { Button, Card } from '@/lib/ui';
 import { CompassArrow, PulseCell, PulseCellButton, positionOf } from '../arrows';
@@ -110,6 +110,7 @@ function DetailBody({
             <span className="text-xs text-charcoal-soft">
               {counter.count} {counter.count === 1 ? 'day' : 'days'} total
             </span>
+            <DeleteCounterButton counter={counter} />
           </div>
         </div>
         {/* Current-belt Ippo — bigger on the detail page so the ripped sprite
@@ -154,7 +155,6 @@ function DetailBody({
         ))}
       </div>
 
-      <DangerZone counter={counter} />
     </div>
   );
 }
@@ -223,18 +223,19 @@ function EditableName({ counter }: { counter: CounterRow }) {
 }
 
 /**
- * Delete a counter — intentionally isolated at the bottom of the detail
- * page and gated behind typing the thread's name so a stray click can't
- * wipe a streak. Match is case-insensitive.
+ * Delete is gated behind typing the counter name exactly, including case.
  */
-function DangerZone({ counter }: { counter: CounterRow }) {
+function DeleteCounterButton({ counter }: { counter: CounterRow }) {
   const router = useRouter();
   const { deleteCounter, error: storeError } = useCounters();
+  const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState('');
   const [pending, setPending] = useState(false);
-  const armed = typed.trim().toLowerCase() === counter.name.trim().toLowerCase();
+  const armed = typed === counter.name;
 
-  async function del() {
+  async function del(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!armed || pending) return;
     setPending(true);
     try {
       const ok = await deleteCounter(counter.id);
@@ -250,43 +251,107 @@ function DangerZone({ counter }: { counter: CounterRow }) {
     }
   }
 
+  function close() {
+    if (pending) return;
+    setOpen(false);
+    setTyped('');
+  }
+
   return (
-    <section className="mt-16">
-      <Card
-        tone="glove"
-        className="border border-glove-deep/60 bg-canvas-soft"
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title={`Delete ${counter.name}`}
+        aria-label={`Delete ${counter.name}`}
+        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-glove border border-glove-deep/40 bg-canvas text-glove-deep transition hover:bg-glove/10 focus:outline-none focus:ring-2 focus:ring-glove"
       >
-        <h2 className="font-display uppercase tracking-[0.2em] text-sm text-glove-deep mb-1">
-          Danger zone
-        </h2>
-        <p className="text-sm text-charcoal-soft mb-4">
-          Deleting <span className="text-charcoal">{counter.name}</span> wipes
-          every check-in and the entire heatmap. This can't be undone.
-        </p>
-        <label className="block text-sm mb-3">
-          <span className="block mb-1 uppercase tracking-wider text-xs text-charcoal-soft">
-            Type <span className="text-charcoal">{counter.name}</span> to confirm
-          </span>
-          <input
-            value={typed}
-            onChange={(e) => setTyped(e.target.value)}
-            placeholder={counter.name}
-            spellCheck={false}
-            autoComplete="off"
-            className="w-full rounded-glove border border-charcoal/20 bg-canvas px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-glove"
-          />
-        </label>
-        {storeError ? <p className="text-sm text-glove-deep mb-3">{storeError}</p> : null}
-        <Button
-          variant="primary"
-          size="lg"
-          disabled={!armed || pending}
-          onClick={del}
+        <TrashIcon className="h-4 w-4" />
+      </button>
+
+      {open ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-charcoal/45 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-counter-title"
         >
-          {pending ? 'Deleting…' : 'Delete this thread'}
-        </Button>
-      </Card>
-    </section>
+          <form
+            onSubmit={del}
+            className="w-full max-w-md rounded-glove border border-glove-deep/30 bg-canvas p-5 shadow-xl"
+          >
+            <h2
+              id="delete-counter-title"
+              className="font-display text-xl text-charcoal"
+            >
+              Delete thread
+            </h2>
+            <p className="mt-2 text-sm text-charcoal-soft">
+              This permanently deletes the counter and all check-ins. Type the
+              exact name below to continue.
+            </p>
+            <p className="mt-4 rounded-glove border border-charcoal/15 bg-canvas-soft px-3 py-2 font-display text-lg text-charcoal">
+              {counter.name}
+            </p>
+            <label className="mt-4 block text-sm">
+              <span className="block mb-1 uppercase tracking-wider text-xs text-charcoal-soft">
+                Confirm exact name
+              </span>
+              <input
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder={counter.name}
+                spellCheck={false}
+                autoComplete="off"
+                autoFocus
+                className="w-full rounded-glove border border-charcoal/20 bg-canvas px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-glove"
+              />
+            </label>
+            {storeError ? <p className="mt-3 text-sm text-glove-deep">{storeError}</p> : null}
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="lg"
+                disabled={pending}
+                onClick={close}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                disabled={!armed || pending}
+              >
+                {pending ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="M19 6l-1 14H6L5 6" />
+      <path d="M10 11v5" />
+      <path d="M14 11v5" />
+    </svg>
   );
 }
 

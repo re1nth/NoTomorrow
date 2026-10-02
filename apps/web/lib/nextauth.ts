@@ -1,13 +1,11 @@
 /**
  * Auth.js (v5) instance used by cloud mode. Deliberately isolated in
- * its own module so `NOTOMORROW_AUTH=local` never has to import it —
+ * its own module so `NOTOMORROW_AUTH=local` never has to import it:
  * `auth-cloud.ts` uses dynamic `import()` and this file's construction
- * (which reads AUTH_* env vars) never runs on the desktop.
+ * never runs on the desktop.
  *
- * Strategy: OAuth-only (Google, GitHub, Microsoft Entra ID, Facebook —
- * each opt-in via env). Session strategy is `jwt` so the id token can
- * carry our internal user id (looked up / created by email on first
- * login) without needing a DB round-trip on every request.
+ * Strategy: OAuth-only. Session strategy is `jwt` so the token can carry
+ * our internal user id without a DB round-trip on every request.
  */
 import { users } from '@notomorrow/db-sqlite';
 import { eq } from 'drizzle-orm';
@@ -25,6 +23,7 @@ import {
 } from './oauth-config';
 
 const providers: NextAuthConfig['providers'] = [];
+const LINKABLE_EMAIL_PROVIDERS = new Set(['google', 'github']);
 
 if (hasGoogleOAuth()) {
   providers.push(
@@ -45,11 +44,9 @@ if (hasGitHubOAuth()) {
 }
 
 if (hasMicrosoftOAuth()) {
-  // Tenant `common` lets both personal Microsoft accounts (outlook,
-  // hotmail, live) and any work/school tenant sign in — the most
-  // permissive option and the right default for a consumer app.
-  // Override with AUTH_MICROSOFT_ENTRA_ID_TENANT_ID for a single-tenant
-  // deployment.
+  // Tenant `common` lets both personal Microsoft accounts and any
+  // work/school tenant sign in. Override with
+  // AUTH_MICROSOFT_ENTRA_ID_TENANT_ID for a single-tenant deployment.
   const tenantId = process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID ?? 'common';
   providers.push(
     MicrosoftEntraID({
@@ -69,6 +66,23 @@ if (hasFacebookOAuth()) {
   );
 }
 
+export function hasTrustedOAuthEmail(provider: string | undefined, profile: unknown): boolean {
+  if (!provider || !LINKABLE_EMAIL_PROVIDERS.has(provider)) return false;
+  if (provider === 'google') {
+    return (
+      typeof profile === 'object' &&
+      profile !== null &&
+      'email_verified' in profile &&
+      (profile as { email_verified: unknown }).email_verified === true
+    );
+  }
+  // GitHub only exposes an email address to this flow when the authenticated
+  // account has an email available to the OAuth profile/API response. Allowing
+  // it here preserves same-email Google <-> GitHub sign-in without linking
+  // less explicit providers by email.
+  return provider === 'github';
+}
+
 export const { auth, handlers, signIn, signOut } = NextAuth({
   providers,
   session: { strategy: 'jwt' },
@@ -78,17 +92,10 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user, account, profile }) {
       // First tick after an OAuth sign-in has `user` + `account`. The
-      // provider's `user.id` is *their* id (Google sub, GitHub numeric,
-      // etc.) — useless as our PK. Look up (or create) our row by email
-      // and pin *our* id onto the token so every subsequent request can
-      // recover it without a DB hit. Same-email across providers is
-      // treated as the same person (implicit account linking).
-      const isOAuth =
-        account?.provider === 'google' ||
-        account?.provider === 'github' ||
-        account?.provider === 'microsoft-entra-id' ||
-        account?.provider === 'facebook';
-      if (isOAuth && user?.email) {
+      // provider's `user.id` is their id (Google sub, GitHub numeric,
+      // etc.) and not useful as our PK. Link/create by email only for
+      // providers whose email signal we explicitly trust.
+      if (hasTrustedOAuthEmail(account?.provider, profile) && user?.email) {
         const email = user.email.trim().toLowerCase();
         const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
         if (existing) {
@@ -107,9 +114,6 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
               email,
               name: user.name ?? (typeof profile?.name === 'string' ? profile.name : null),
               image: user.image ?? null,
-              // Every provider we accept releases the email only after
-              // it's been verified on their side, so we don't require a
-              // second verification round.
               emailVerified: new Date(),
             })
             .returning({ id: users.id });
