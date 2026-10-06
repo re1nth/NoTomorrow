@@ -178,7 +178,7 @@ fi
 
 # ─── database ──────────────────────────────────────────────────────────
 if [ -r "$ENV_FILE" ]; then
-  db_path=$(grep -E '^SQLITE_DB_PATH=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')
+  db_path=$(grep -E '^[[:space:]]*SQLITE_DB_PATH=' "$ENV_FILE" | head -1 | cut -d= -f2- | tr -d '"')
   if [ -n "$db_path" ] && [ -e "$db_path" ]; then
     section "database"
     kv "path" "$db_path"

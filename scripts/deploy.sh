@@ -64,7 +64,11 @@ pnpm store prune
 
 step "apply DB migrations"
 # Read SQLITE_DB_PATH from the env file so we don't hardcode it here.
-DB_PATH=$(grep -E '^SQLITE_DB_PATH=' "$ENV_FILE" | head -1 | cut -d= -f2- || true)
+# ^[[:space:]]* in the anchor tolerates .env.local lines that happen to be
+# indented — Next.js's dotenv reader trims leading whitespace on keys, so a
+# file written with leading spaces still boots the app, but a strict `^KEY=`
+# grep silently misses it and this step fails with "SQLITE_DB_PATH not found".
+DB_PATH=$(grep -E '^[[:space:]]*SQLITE_DB_PATH=' "$ENV_FILE" | head -1 | cut -d= -f2- || true)
 if [ -z "$DB_PATH" ]; then
   fail "SQLITE_DB_PATH not found in $ENV_FILE"
 fi
